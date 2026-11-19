@@ -1,4 +1,22 @@
-# Bluetooth (RFCOMM) Printers
+# Bluetooth printers
+
+## Bluetooth Low Energy (BLE)
+
+1. Set up Home Assistant's [Bluetooth integration](https://www.home-assistant.io/integrations/bluetooth/)
+   with a local adapter or a proxy that supports active connections.
+2. Switch on the printer and disconnect it from its mobile app.
+3. Add **ESC/POS Thermal Printer** and choose **Bluetooth Low Energy (BLE)**.
+4. Select your printer profile and the device from the list. Choose **Refresh
+   list** if it has just been switched on, or enter its Bluetooth address.
+5. Submit the form. Home Assistant checks the printer's model over GATT.
+   Open the device page and press **Sample test print**.
+
+The **LuckPrinter (384 dots, continuous paper)** profile is for continuous-paper
+devices using the Lujiang command set. BLE print jobs use raster graphics for
+text, images, QR codes, and software barcodes. Image size must fit the printhead.
+BLE printing does not require a system PIN or pairing in the phone's settings.
+
+## Bluetooth Classic (RFCOMM)
 
 For portable, battery-powered ESC/POS printers (Netum, MUNBYN, POS-58 generics, Phomemo Classic line).
 

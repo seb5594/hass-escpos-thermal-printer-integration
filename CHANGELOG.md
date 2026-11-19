@@ -7,6 +7,15 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+### Added
+
+- Bluetooth Low Energy setup uses Home Assistant's shared Bluetooth scanner,
+  including connectable proxies. The setup checks the printer model over GATT
+  and offers address entry for devices with unclear names.
+- LuckPrinter raster jobs support text, images, QR codes, and software
+  barcodes through the existing print actions. Print completion is confirmed
+  by the device.
+
 ## [2026.11.19] - 2026-11-19
 
 ### Added

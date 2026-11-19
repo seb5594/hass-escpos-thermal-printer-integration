@@ -24,6 +24,7 @@ from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 
 from .bluez import query_bt_battery_percentage
 from .const import (
+    CONF_BLE_PROFILE,
     CONF_BT_MAC,
     CONF_CONNECTION_TYPE,
     CONNECTION_TYPE_BLUETOOTH,
@@ -60,7 +61,10 @@ async def async_setup_entry(
     """
     sensors: list[SensorEntity] = [LastImagePrintSensor(entry), LastPrintSensor(entry)]
 
-    if entry.data.get(CONF_CONNECTION_TYPE) == CONNECTION_TYPE_BLUETOOTH:
+    if (
+        entry.data.get(CONF_CONNECTION_TYPE) == CONNECTION_TYPE_BLUETOOTH
+        and CONF_BLE_PROFILE not in entry.data
+    ):
         mac = entry.data.get(CONF_BT_MAC, "")
         if mac:
             sensors.append(BluetoothPrinterBatterySensor(entry, mac))
