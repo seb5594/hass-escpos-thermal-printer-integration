@@ -9,6 +9,8 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ### Added
 
+- Fichero Label Printer (D11s) preset for Action article 3212141, with a
+  96-dot printhead and automatic advance to the next label.
 - Bluetooth Low Energy setup uses Home Assistant's shared Bluetooth scanner,
   including connectable proxies. The setup checks the printer model over GATT
   and offers address entry for devices with unclear names.

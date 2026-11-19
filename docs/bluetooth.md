@@ -11,6 +11,19 @@
 5. Submit the form. Home Assistant checks the printer's model over GATT.
    Open the device page and press **Sample test print**.
 
+### Fichero Label Printer (D11s)
+
+Choose **Fichero Label Printer (D11s)** for Action article 3212141. The
+profile uses the AiYin print commands and advances to the next label
+after each job. Use gap labels and fit the content within 96 dots
+across by 240 dots along the feed for 30 mm labels. For text that should
+run along the long side of the label, use `print_text_image` with
+`rotation: 90`. A standalone feed advances by one label.
+[Action product page](https://www.action.com/de-de/p/3212141/fichero-etikettendrucker/)
+· [D11s protocol reference](https://github.com/0xMH/fichero-printer/blob/main/docs/PROTOCOL.md)
+
+### Continuous-paper profiles
+
 The **LuckPrinter (384 dots, continuous paper)** profile is for continuous-paper
 devices using the Lujiang command set. BLE print jobs use raster graphics for
 text, images, QR codes, and software barcodes. Image size must fit the printhead.
