@@ -365,10 +365,12 @@ async def test_craftsco_4777_wire_variant(name, model, preamble, terminator):  #
         await link.print_job(profile, raster, 80, None)
         assert writes[:2] == [b"\x10\xff\x40", b"\x10\xff\x20\xf0"]
         if preamble == "aiyin":
-            assert writes[2:5] == [b"\x10\xff\x84\x02", bytes(12), b"\x10\xff\xfe\x01"]
+            expected_start = [b"\x10\xff\x84\x02", bytes(12), b"\x10\xff\xfe\x01"]
+            assert writes[2:5] == expected_start
             assert writes[5:] == [raster, b"\x1bJP", terminator]
         else:
-            assert writes[2:4] == [b"\x10\xff\xf1\x03", bytes(12)]
+            expected_start = [b"\x10\xff\xf1\x03", bytes(12)]
+            assert writes[2:4] == expected_start
             if model.startswith("D1_LJ20C_"):
                 assert writes[4:] == [raster, b"\x1bJP", b"\x1b\xbb\xbb", terminator]
             else:
@@ -385,7 +387,15 @@ async def test_craftsco_4777_wire_variant(name, model, preamble, terminator):  #
         assert exc_info.value.translation_key == "ble_use_4777_profile"
         assert not writes
         await link.print_job(profile, b"", 48, None)
-        assert writes == [b"\x10\xff\x40", b"\x1bJ0"]
+        mark = [b"\x1b\xbb\xbb"] if model.startswith("D1_LJ20C_") else []
+        assert writes == [
+            b"\x10\xff\x40",
+            b"\x10\xff\x20\xf0",
+            *expected_start,
+            b"\x1bJ0",
+            *mark,
+            terminator,
+        ]
 
 
 async def test_reconfigure_generic_entry_as_craftsco_4777(hass):  # type: ignore[no-untyped-def]

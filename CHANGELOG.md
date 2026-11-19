@@ -15,6 +15,9 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ### Fixed
 
+- Standalone paper feed on the Crafts&Co 4777 now opens and closes a
+  firmware-specific printer job, with no raster data.
+
 - The BLE reconfiguration dialog suggests the 4777 profile for an existing
   entry when Home Assistant sees its advertisement.
 - Printer buttons report the entry as unavailable during reload instead of

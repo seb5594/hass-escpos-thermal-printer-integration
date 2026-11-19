@@ -169,15 +169,12 @@ class BlePrinterLink:
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="ble_printer_error")
         variant = None
         if is_4777:
-            if not raster:
-                await self._feed(feed_dots)
-                return
             model = await self.read_model()
             variant = craftsco_4777_variant(self.advertised_name, model)
             if variant is None:
                 raise BlePrinterMismatchError("Unrecognized Crafts&Co 4777 firmware")
             _LOGGER.debug("Crafts&Co 4777 raster protocol: %s", variant)
-            if variant == "compressed":
+            if variant == "compressed" and raster:
                 raster = await asyncio.to_thread(_compressed_raster, raster)
 
         if density is not None:
