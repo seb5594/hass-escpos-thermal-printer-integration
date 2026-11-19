@@ -777,6 +777,9 @@
     },
     "ble_use_4777_profile": {
       "message": "Wähle das Profil „Crafts&Co Fichero Mini Pocket Printer (4777)“ für diesen Drucker."
+    },
+    "ble_buffer_overrun": {
+      "message": "Der BLE-Drucker hat Daten verworfen, weil sein Empfangspuffer voll war."
     }
   },
   "services": {

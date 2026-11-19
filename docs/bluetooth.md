@@ -34,8 +34,8 @@ BLE printing does not require a system PIN or pairing in the phone's settings.
 Choose **Crafts&Co Fichero Mini Pocket Printer (4777)** if the Bluetooth
 name begins with `CRAFTS&CO|4777` or `CRAFTS&CO_4777`. The profile uses
 the firmware-specific commands for a 384-dot continuous-paper raster.
-A test print was confirmed on a `CRAFTS&CO|4777` device with firmware
-V3.20, using the compressed raster format.
+Test printing with the compressed raster format and standalone paper
+feed were confirmed on a `CRAFTS&CO|4777` device with firmware V3.20.
 If you previously added the device with the generic LuckPrinter profile,
 open the integration entry's menu, choose **Reconfigure**, and select
 the 4777 profile. The address and existing entities carry over.

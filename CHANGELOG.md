@@ -15,6 +15,10 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ### Fixed
 
+- Pace compressed BLE raster writes on the Crafts&Co 4777 and report
+  the printer's receive-buffer overrun notifications.
+- Update the Last Print sensor as soon as a print succeeds.
+
 - Standalone paper feed on the Crafts&Co 4777 now opens and closes a
   firmware-specific printer job, with no raster data.
 

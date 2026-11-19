@@ -777,6 +777,9 @@
     },
     "ble_use_4777_profile": {
       "message": "Select the Crafts&Co Fichero Mini Pocket Printer (4777) profile for this printer."
+    },
+    "ble_buffer_overrun": {
+      "message": "The BLE printer discarded data because its receive buffer was full."
     }
   },
   "services": {

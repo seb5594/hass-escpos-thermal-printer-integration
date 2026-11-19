@@ -51,6 +51,8 @@ BLE_PRINTER_SERVICES = frozenset(
 BLE_ERRORS = (BleakError, OSError, TimeoutError)
 _DEFAULT_ATT_PAYLOAD = 20
 _MAX_CHUNK = 200
+_COMPRESSED_CHUNK = 100
+_COMPRESSED_CHUNK_DELAY = 0.04
 _REPLY_TIMEOUT = 5
 _PRINT_TIMEOUT = 60
 _FATAL_STATUS = 0x56  # Cover open, paper out, or printhead overheated.
@@ -104,24 +106,38 @@ class BlePrinterLink:
         self._write = write
         self._with_response = "write-without-response" not in write.properties
         self._notifications: asyncio.Queue[bytes] = asyncio.Queue(maxsize=32)
+        self._discarded_raster = False
 
     def received(self, _characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Queue a notification for the active request."""
+        if len(data) == 6 and data.startswith(b"\xff\x10"):
+            self._discarded_raster = True
         if not self._notifications.full():
             self._notifications.put_nowait(bytes(data))
 
-    async def write(self, payload: bytes) -> None:
+    async def write(self, payload: bytes, *, compressed_raster: bool = False) -> None:
         """Write bounded ATT chunks, pacing writes without response."""
         size = _DEFAULT_ATT_PAYLOAD
         if not self._with_response:
             size = max(1, min(_MAX_CHUNK, self._write.max_write_without_response_size))
+        if compressed_raster:
+            size = min(size, _COMPRESSED_CHUNK)
         for offset in range(0, len(payload), size):
+            self._check_raster_buffer()
             async with asyncio.timeout(_REPLY_TIMEOUT):
                 await self._client.write_gatt_char(
                     self._write, payload[offset : offset + size], response=self._with_response
                 )
-            if not self._with_response:
+            if compressed_raster:
+                await asyncio.sleep(_COMPRESSED_CHUNK_DELAY)
+            elif not self._with_response:
                 await asyncio.sleep(0.02)
+
+    def _check_raster_buffer(self) -> None:
+        if self._discarded_raster:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="ble_buffer_overrun"
+            )
 
     async def request(
         self, command: bytes, accepts: Callable[[bytes], bool], timeout: float = _REPLY_TIMEOUT
@@ -135,6 +151,7 @@ class BlePrinterLink:
                 previous = b""
                 while True:
                     response = await self._notifications.get()
+                    self._check_raster_buffer()
                     if accepts(response):
                         return response
                     if previous == b"O" and response == b"K" and accepts(b"OK"):
@@ -184,7 +201,11 @@ class BlePrinterLink:
         await self._start_job(aiyin=aiyin, continuous=not profile.label_rows)
 
         if raster:
-            await self.write(raster)
+            if variant == "compressed":
+                _LOGGER.debug("Sending %d bytes of compressed BLE raster", len(raster))
+                await self.write(raster, compressed_raster=True)
+            else:
+                await self.write(raster)
             await asyncio.sleep(0.5)
         if profile.label_rows:
             await self.write(b"\x1d\x0c")

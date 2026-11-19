@@ -1,6 +1,7 @@
 """Config flow and print-job regressions for Bluetooth LE."""
 
 from contextlib import asynccontextmanager
+from hashlib import shake_256
 from struct import pack, unpack
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -9,6 +10,7 @@ from zlib import decompress
 from bleak.exc import BleakError
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from PIL import Image
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -85,7 +87,12 @@ async def test_ble_config_flow_and_print_service(hass):  # type: ignore[no-untyp
         await hass.async_block_till_done()
         assert isinstance(entry.runtime_data.adapter, ble_adapter.BlePrinterAdapter)
 
+        sensor_id = er.async_get(hass).async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_last_print"
+        )
+        assert hass.states.get(sensor_id).state == "unknown"
         await hass.services.async_call(DOMAIN, "print_text", {"text": "Grüße"}, blocking=True)
+        assert hass.states.get(sensor_id).state != "unknown"
         profile, raster, feed, density = link.print_job.await_args.args
         assert profile is _MODEL
         assert raster.startswith(b"\x1dv0\x00\x30\x00")
@@ -351,7 +358,7 @@ async def test_craftsco_4777_wire_variant(name, model, preamble, terminator):  #
     writes = []
     link = BlePrinterLink(AsyncMock(), char, name)
 
-    async def reply(payload):
+    async def reply(payload, **kwargs):
         writes.append(payload)
         if response := {
             b"\x10\xff\x40": b"\x00",
@@ -451,3 +458,42 @@ async def test_reconfigure_generic_entry_as_craftsco_4777(hass):  # type: ignore
         assert entry.data["ble_profile"] == "craftsco_4777"
         assert entry.unique_id == f"bt:{_MAC.lower()}"
         assert entry.title == get_ble_profiles()["craftsco_4777"].name
+
+
+@pytest.mark.parametrize("overrun", [False, True])
+async def test_craftsco_4777_large_compressed_raster(overrun):  # type: ignore[no-untyped-def]
+    """Send a 384 x 319 image in paced chunks and report discarded data."""
+    char = Mock(properties=["write-without-response"], max_write_without_response_size=244)
+    client = AsyncMock()
+    link = BlePrinterLink(client, char, "CRAFTS&CO|4777_BLE")
+    chunks = []
+    stop = b"\x10\xff\xf1\x45"
+
+    async def send(_, data, *, response):
+        if reply := {
+            b"\x10\xff\x40": b"\x00",
+            b"\x10\xff\x20\xf0": b"D1N-4777",
+            stop: b"\xaa",
+        }.get(data):
+            link.received(char, bytearray(reply))
+        if data.startswith(b"\x1f\x10") or (chunks and len(data) > 4):
+            chunks.append(data)
+            if overrun:
+                link.received(char, bytearray(b"\xff\x10\x00\x00\x00\x00"))
+
+    client.write_gatt_char.side_effect = send
+    pixels = shake_256(b"designer raster").digest(48 * 319)
+    raster = b"\x1dv0\x00" + pack("<HH", 48, 319) + pixels
+    profile = get_ble_profiles()["craftsco_4777"]
+    with patch.object(ble_transport.asyncio, "sleep", new=AsyncMock()) as sleep:
+        if overrun:
+            with pytest.raises(HomeAssistantError) as exc_info:
+                await link.print_job(profile, raster, 80, None)
+            assert exc_info.value.translation_key == "ble_buffer_overrun"
+            assert len(chunks) == 1
+            assert all(call.args[1] != stop for call in client.write_gatt_char.await_args_list)
+        else:
+            await link.print_job(profile, raster, 80, None)
+            assert max(map(len, chunks)) == 100
+            assert decompress(b"".join(chunks)[10:]) == pixels
+            assert sleep.await_args_list.count(((0.04,), {})) == len(chunks)
