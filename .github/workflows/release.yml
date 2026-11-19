@@ -86,4 +86,4 @@ jobs:
           body_path: ${{ steps.notes.outputs.body_path }}
           files: escpos_printer.zip
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, 'b') }}
