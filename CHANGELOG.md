@@ -7,6 +7,8 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+## [2026.11.19.1] - 2026-11-19
+
 ### Added
 
 - Fichero Label Printer (D11s) preset for Action article 3212141, with a
@@ -1715,7 +1717,8 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 Earlier releases: see git history.
 
-[Unreleased]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.1...HEAD
+[2026.11.19.1]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19...2026.11.19.1
 [1.2.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v0.8.0...v1.0.0

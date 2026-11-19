@@ -1300,7 +1300,7 @@ wheels = [
 
 [[package]]
 name = "ha-escpos-thermal-printer"
-version = "2026.11.19"
+version = "2026.11.19.1"
 source = { editable = "." }
 dependencies = [
     { name = "dbus-fast" },
