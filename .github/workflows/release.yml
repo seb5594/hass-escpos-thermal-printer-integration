@@ -8,7 +8,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]*'
 
 permissions:
   contents: write
@@ -30,7 +30,7 @@ jobs:
       - name: Verify tag matches manifest.json + pyproject.toml
         run: |
           TAG="${GITHUB_REF##refs/tags/}"
-          TAG_VERSION="${TAG#v}"
+          TAG_VERSION="$TAG"
           MANIFEST_VERSION="$(python -c 'import json; print(json.load(open("custom_components/escpos_printer/manifest.json"))["version"])')"
           PYPROJECT_VERSION="$(python -c 'import tomllib; print(tomllib.loads(open("pyproject.toml","rb").read().decode())["project"]["version"])')"
           echo "tag=$TAG_VERSION manifest=$MANIFEST_VERSION pyproject=$PYPROJECT_VERSION"
@@ -51,10 +51,9 @@ jobs:
         id: notes
         run: |
           TAG="${GITHUB_REF##refs/tags/}"
-          # The tag is `v0.7.0`; the CHANGELOG heading is `## [0.7.0]`.
-          # Strip the leading `v` so the awk grep matches (CI-H3 fix; the
-          # `verify` job already does the same).
-          TAG_VERSION="${TAG#v}"
+          # The tag is the bare version, e.g. `2026.11.19`; the CHANGELOG
+          # heading is `## [2026.11.19]`.
+          TAG_VERSION="$TAG"
           if [ -f CHANGELOG.md ]; then
             awk -v tag="$TAG_VERSION" '
               $0 ~ "^## \\[" tag "\\]" { in_section=1; next }
