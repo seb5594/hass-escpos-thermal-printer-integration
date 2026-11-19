@@ -301,6 +301,14 @@
           "ble_profile": "Druckerprofil",
           "bt_mac": "Gerät oder Bluetooth-Adresse"
         }
+      },
+      "reconfigure_bluetooth_le": {
+        "title": "Bluetooth-LE-Drucker",
+        "description": "Schalte den Drucker ein und trenne ihn von der Handy-App. Wähle das Druckerprofil und das Gerät aus der Liste. Aktualisiere die Liste, wenn der Drucker noch fehlt. Du kannst auch seine Bluetooth-Adresse eingeben.",
+        "data": {
+          "ble_profile": "Druckerprofil",
+          "bt_mac": "Gerät oder Bluetooth-Adresse"
+        }
       }
     },
     "error": {
@@ -344,7 +352,8 @@
       "ble_not_available": "Richte zuerst die Bluetooth-Integration von Home Assistant ein.",
       "ble_not_found": "Kein verbindungsfähiger Bluetooth-Adapter oder Proxy sieht diese Adresse. Schalte den Drucker ein und aktualisiere die Liste.",
       "ble_model_mismatch": "Das Gerät entspricht dem gewählten Druckerprofil nicht. Prüfe Modell und Bluetooth-Adresse.",
-      "ble_cannot_connect": "Der Drucker antwortet nicht. Schließe die Hersteller-App und versuche es in der Nähe des Bluetooth-Adapters erneut."
+      "ble_cannot_connect": "Der Drucker antwortet nicht. Schließe die Hersteller-App und versuche es in der Nähe des Bluetooth-Adapters erneut.",
+      "ble_use_4777_profile": "Wähle das Profil „Crafts&Co Fichero Mini Pocket Printer (4777)“ für diesen Drucker."
     },
     "abort": {
       "already_configured": "Dieser Drucker ist bereits eingerichtet.",
@@ -762,6 +771,12 @@
     },
     "ble_job_too_long": {
       "message": "Der Druckauftrag ist länger als {rows} Pixel."
+    },
+    "printer_entry_unavailable": {
+      "message": "Der Drucker wird gerade geladen oder ist nicht verfügbar."
+    },
+    "ble_use_4777_profile": {
+      "message": "Wähle das Profil „Crafts&Co Fichero Mini Pocket Printer (4777)“ für diesen Drucker."
     }
   },
   "services": {

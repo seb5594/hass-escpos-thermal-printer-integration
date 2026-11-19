@@ -1,19 +1,24 @@
 """Config flow and print-job regressions for Bluetooth LE."""
 
 from contextlib import asynccontextmanager
-from struct import unpack
+from struct import pack, unpack
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+from zlib import decompress
 
 from bleak.exc import BleakError
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from PIL import Image
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.escpos_printer import _bluetooth_config
 from custom_components.escpos_printer._config_flow import ble_steps
-from custom_components.escpos_printer.capabilities.ble_profiles import BlePrinterProfile
+from custom_components.escpos_printer.capabilities.ble_profiles import (
+    BlePrinterProfile,
+    get_ble_profiles,
+)
 from custom_components.escpos_printer.const import CONF_CONNECTION_TYPE, DOMAIN
 from custom_components.escpos_printer.device_action.capabilities import (
     async_get_action_capabilities,
@@ -38,10 +43,12 @@ _MODEL = BlePrinterProfile(
 async def test_ble_config_flow_and_print_service(hass):  # type: ignore[no-untyped-def]
     """Discover an unnamed BLE device, reject the wrong firmware, then print a job."""
     api = Mock()
+    api.async_last_service_info.return_value = None
     api.async_discovered_service_info.return_value = [
         SimpleNamespace(address=_MAC, name="Unknown", service_uuids=[])
     ]
     link = AsyncMock()
+    link.advertised_name = "Unknown"
     link.read_model.side_effect = ["D11s", "DP-D1"]
 
     @asynccontextmanager
@@ -102,7 +109,7 @@ async def test_ble_config_flow_and_print_service(hass):  # type: ignore[no-untyp
         reconfigure = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
         )
-        assert reconfigure["step_id"] == "bluetooth_le"
+        assert reconfigure["step_id"] == "reconfigure_bluetooth_le"
         link.read_model.side_effect = None
         link.read_model.return_value = "DP-D1"
         result = await hass.config_entries.flow.async_configure(reconfigure["flow_id"], data)
@@ -203,7 +210,8 @@ async def test_ble_wire_protocol(dialect, width, rows):  # type: ignore[no-untyp
 async def test_gatt_connection_uses_matching_characteristics_and_disconnects(hass):  # type: ignore[no-untyped-def]
     """Home Assistant may route a print through a proxy with several other GATT services."""
     api = Mock()
-    api.async_ble_device_from_address.return_value = device = object()
+    api.async_last_service_info.return_value = None
+    api.async_ble_device_from_address.return_value = device = SimpleNamespace(name="BLE printer")
     writer = SimpleNamespace(properties=["write"])
     notifier = SimpleNamespace(properties=["notify"])
     service = Mock()
@@ -302,8 +310,10 @@ async def test_ble_gatt_rejects_wrong_service_and_bad_status(hass):  # type: ign
         await ble_transport.open_ble_printer(hass, _MAC, 1).__aenter__()
 
     api = Mock()
+    api.async_last_service_info.return_value = None
     client = AsyncMock()
     client.services = []
+    api.async_ble_device_from_address.return_value = SimpleNamespace(name="BLE printer")
     with (
         patch.object(ble_transport, "bluetooth_api", return_value=api),
         patch.object(ble_transport, "establish_connection", return_value=client),
@@ -322,3 +332,112 @@ async def test_ble_gatt_rejects_wrong_service_and_bad_status(hass):  # type: ign
     with pytest.raises(HomeAssistantError, match="ble_printer_error"):
         await link.print_job(_MODEL, b"image", 80, None)
     assert client.write_gatt_char.await_count == 1
+
+
+@pytest.mark.parametrize(
+    ("name", "model", "preamble", "terminator"),
+    [
+        ("CRAFTS&CO|4777_BLEh\ufffd", "D1N-4777", "lujiang", b"\x10\xff\xf1\x45"),
+        ("CRAFTS&CO|4777_BLE", "D1_LJ20C_KS_GY", "lujiang", b"\x10\xff\xf1\x45"),
+        ("CRAFTS&CO_4777_BLE", "D1-4777", "aiyin", b"\x10\xff\xfe\x45"),
+    ],
+)
+async def test_craftsco_4777_wire_variant(name, model, preamble, terminator):  # type: ignore[no-untyped-def]
+    """Use the advertised name and firmware to choose the vendor's wire sequence."""
+    profile = get_ble_profiles()["craftsco_4777"]
+    assert profile.matches_advertisement(name)
+    assert profile.width == 384
+    char = Mock(properties=["write"])
+    writes = []
+    link = BlePrinterLink(AsyncMock(), char, name)
+
+    async def reply(payload):
+        writes.append(payload)
+        if response := {
+            b"\x10\xff\x40": b"\x00",
+            b"\x10\xff\x20\xf0": model.encode("ascii"),
+            terminator: b"\xaa",
+        }.get(payload):
+            link.received(char, bytearray(response))
+
+    raster = b"\x1dv0\x00" + pack("<HH", 48, 2) + bytes(range(96))
+    with patch.object(link, "write", side_effect=reply):
+        await link.print_job(profile, raster, 80, None)
+        assert writes[:2] == [b"\x10\xff\x40", b"\x10\xff\x20\xf0"]
+        if preamble == "aiyin":
+            assert writes[2:5] == [b"\x10\xff\x84\x02", bytes(12), b"\x10\xff\xfe\x01"]
+            assert writes[5:] == [raster, b"\x1bJP", terminator]
+        else:
+            assert writes[2:4] == [b"\x10\xff\xf1\x03", bytes(12)]
+            if model.startswith("D1_LJ20C_"):
+                assert writes[4:] == [raster, b"\x1bJP", b"\x1b\xbb\xbb", terminator]
+            else:
+                compressed = writes[4]
+                assert compressed[:2] == b"\x1f\x10"
+                assert unpack(">HHI", compressed[2:10]) == (48, 2, len(compressed[10:]))
+                assert compressed[10] == 0x28  # DEFLATE with the firmware's 1 KiB window
+                assert decompress(compressed[10:]) == raster[8:]
+                assert writes[5:] == [b"\x1bJP", terminator]
+
+        writes.clear()
+        with pytest.raises(HomeAssistantError) as exc_info:
+            await link.print_job(get_ble_profiles()["luckprinter_384"], raster, 80, None)
+        assert exc_info.value.translation_key == "ble_use_4777_profile"
+        assert not writes
+        await link.print_job(profile, b"", 48, None)
+        assert writes == [b"\x10\xff\x40", b"\x1bJ0"]
+
+
+async def test_reconfigure_generic_entry_as_craftsco_4777(hass):  # type: ignore[no-untyped-def]
+    """Reconfigure the existing device without changing its entry identity."""
+    profile = get_ble_profiles()["luckprinter_384"]
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=profile.name,
+        unique_id=f"bt:{_MAC.lower()}",
+        version=3,
+        minor_version=1,
+        data={
+            "connection_type": "bluetooth",
+            "bt_mac": _MAC,
+            "ble_profile": "luckprinter_384",
+            "timeout": 12.0,
+        },
+    )
+    entry.add_to_hass(hass)
+    name = "CRAFTS&CO|4777_BLEh\ufffd"
+    device = SimpleNamespace(address=_MAC, name=name, service_uuids=[])
+    api = Mock()
+    api.async_discovered_service_info.return_value = [device]
+    api.async_last_service_info.return_value = device
+    api.async_ble_device_from_address.return_value = device
+    link = AsyncMock(advertised_name=name)
+    link.read_model.return_value = "D1-4777"
+
+    @asynccontextmanager
+    async def open_link(*args):
+        yield link
+
+    with (
+        patch.object(ble_steps, "bluetooth_api", return_value=api),
+        patch.object(ble_steps, "open_ble_printer", open_link),
+        patch.object(ble_adapter, "open_ble_printer", open_link),
+    ):
+        flow = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
+        )
+        assert flow["step_id"] == "reconfigure_bluetooth_le"
+        field = next(key for key in flow["data_schema"].schema if key == "ble_profile")
+        assert field.description["suggested_value"] == "craftsco_4777"
+        rejected = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {"ble_profile": "luckprinter_384", "bt_mac": _MAC}
+        )
+        assert rejected["errors"] == {"base": "ble_use_4777_profile"}
+        result = await hass.config_entries.flow.async_configure(
+            flow["flow_id"], {"ble_profile": "craftsco_4777", "bt_mac": _MAC}
+        )
+        assert result["reason"] == "reconfigure_successful"
+        await hass.async_block_till_done()
+        assert entry.data["ble_profile"] == "craftsco_4777"
+        assert entry.unique_id == f"bt:{_MAC.lower()}"
+        assert entry.title == get_ble_profiles()["craftsco_4777"].name

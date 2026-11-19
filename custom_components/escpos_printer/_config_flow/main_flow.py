@@ -129,7 +129,7 @@ class EscposConfigFlow(
             return await self.async_step_reconfigure_usb()
         if connection_type == CONNECTION_TYPE_BLUETOOTH:
             if CONF_BLE_PROFILE in entry.data:
-                return await self.async_step_bluetooth_le(user_input)
+                return await self.async_step_reconfigure_bluetooth_le(user_input)
             return await self.async_step_reconfigure_bluetooth()
         if connection_type == CONNECTION_TYPE_SERIAL:
             return await self.async_step_reconfigure_serial()

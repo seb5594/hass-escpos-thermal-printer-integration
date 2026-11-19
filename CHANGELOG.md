@@ -7,6 +7,19 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+### Added
+
+- Crafts&Co Fichero Mini Pocket Printer (4777) profile. Selects the
+  matching BLE raster format and print commands from the advertisement
+  and firmware model, including compressed raster on the older variant.
+
+### Fixed
+
+- The BLE reconfiguration dialog suggests the 4777 profile for an existing
+  entry when Home Assistant sees its advertisement.
+- Printer buttons report the entry as unavailable during reload instead of
+  accessing missing runtime data.
+
 ## [2026.11.19.1] - 2026-11-19
 
 ### Added

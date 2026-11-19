@@ -7,6 +7,29 @@ from functools import cache
 import json
 from pathlib import Path
 import re
+from typing import Literal
+
+CRAFTSCO_4777_DIALECT = "craftsco_4777"
+_CRAFTSCO_4777_LEGACY = "crafts&co|4777"
+_CRAFTSCO_4777_AIYIN = "crafts&co_4777"
+type CraftsCo4777Variant = Literal["compressed", "lujiang", "aiyin"]
+
+
+def is_craftsco_4777_name(name: str) -> bool:
+    """Recognize both Bluetooth names shipped under article 4777."""
+    return name.casefold().startswith((_CRAFTSCO_4777_LEGACY, _CRAFTSCO_4777_AIYIN))
+
+
+def craftsco_4777_variant(name: str, model: str) -> CraftsCo4777Variant | None:
+    """Resolve firmware as the Fichero app does for the two 4777 advertisements."""
+    advertised = (name if is_craftsco_4777_name(name) else model).casefold()
+    if advertised.startswith(_CRAFTSCO_4777_AIYIN):
+        return "aiyin"
+    if model.upper().startswith("D1_LJ20C_"):
+        return "lujiang"
+    if advertised.startswith(_CRAFTSCO_4777_LEGACY):
+        return "compressed"
+    return None
 
 
 def _model_key(name: str) -> str:
