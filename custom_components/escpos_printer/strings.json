@@ -301,6 +301,14 @@
           "ble_profile": "Printer profile",
           "bt_mac": "Device or Bluetooth address"
         }
+      },
+      "reconfigure_bluetooth_le": {
+        "title": "Bluetooth LE printer",
+        "description": "Turn the printer on and disconnect it from the mobile app. Select the printer profile and device. Refresh the list if the printer has not appeared yet, or enter its Bluetooth address.",
+        "data": {
+          "ble_profile": "Printer profile",
+          "bt_mac": "Device or Bluetooth address"
+        }
       }
     },
     "error": {
@@ -344,7 +352,8 @@
       "ble_not_available": "Set up the Home Assistant Bluetooth integration first.",
       "ble_not_found": "No connectable Bluetooth adapter or proxy can see this address. Turn on the printer and refresh the list.",
       "ble_model_mismatch": "The device does not match the selected printer profile. Check the model and Bluetooth address.",
-      "ble_cannot_connect": "The printer did not respond. Close the manufacturer's app and try again near the Bluetooth adapter."
+      "ble_cannot_connect": "The printer did not respond. Close the manufacturer's app and try again near the Bluetooth adapter.",
+      "ble_use_4777_profile": "Select the Crafts&Co Fichero Mini Pocket Printer (4777) profile for this printer."
     },
     "abort": {
       "already_configured": "This printer is already configured.",
@@ -762,6 +771,15 @@
     },
     "ble_job_too_long": {
       "message": "The print job is longer than {rows} pixels."
+    },
+    "printer_entry_unavailable": {
+      "message": "The printer is loading or unavailable."
+    },
+    "ble_use_4777_profile": {
+      "message": "Select the Crafts&Co Fichero Mini Pocket Printer (4777) profile for this printer."
+    },
+    "ble_buffer_overrun": {
+      "message": "The BLE printer discarded data because its receive buffer was full."
     }
   },
   "services": {

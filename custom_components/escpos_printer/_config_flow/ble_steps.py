@@ -13,7 +13,13 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from ..capabilities.ble_profiles import BlePrinterProfile, get_ble_profiles
+from ..capabilities.ble_profiles import (
+    CRAFTSCO_4777_DIALECT,
+    BlePrinterProfile,
+    craftsco_4777_variant,
+    get_ble_profiles,
+    is_craftsco_4777_name,
+)
 from ..const import (
     CONF_BLE_PROFILE,
     CONF_BT_MAC,
@@ -43,6 +49,12 @@ class BleFlowMixin:
 
     hass: Any
 
+    async def async_step_reconfigure_bluetooth_le(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Select a new BLE profile for the current address."""
+        return await self.async_step_bluetooth_le(user_input)
+
     async def async_step_bluetooth_le(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -54,21 +66,30 @@ class BleFlowMixin:
             if result is not None:
                 return result
 
-        defaults = (
-            self._get_reconfigure_entry().data  # type: ignore[attr-defined]
-            if self.source == "reconfigure"  # type: ignore[attr-defined]
-            else {}
-        )
+        reconfigure = self.source == "reconfigure"  # type: ignore[attr-defined]
+        defaults = self._get_reconfigure_entry().data if reconfigure else {}  # type: ignore[attr-defined]
         current = dict(user_input or defaults)
+        if user_input is None and reconfigure and (bluetooth := bluetooth_api(self.hass)):
+            info = bluetooth.async_last_service_info(
+                self.hass, current[CONF_BT_MAC], connectable=True
+            )
+            if info and is_craftsco_4777_name(info.name) and CRAFTSCO_4777_DIALECT in profiles:
+                current[CONF_BLE_PROFILE] = CRAFTSCO_4777_DIALECT
         if current.get(CONF_BT_MAC) == _REFRESH:
             current.pop(CONF_BT_MAC)
         return self.async_show_form(  # type: ignore[attr-defined,no-any-return]
-            step_id="bluetooth_le",
+            step_id="reconfigure_bluetooth_le" if reconfigure else "bluetooth_le",
             data_schema=self.add_suggested_values_to_schema(  # type: ignore[attr-defined]
                 vol.Schema(
                     {
-                        vol.Required(CONF_BLE_PROFILE): vol.In(
-                            {key: profile.name for key, profile in profiles.items()}
+                        vol.Required(CONF_BLE_PROFILE): SelectSelector(
+                            SelectSelectorConfig(
+                                options=[
+                                    SelectOptionDict(value=key, label=profile.name)
+                                    for key, profile in profiles.items()
+                                ],
+                                mode=SelectSelectorMode.DROPDOWN,
+                            )
                         ),
                         vol.Required(CONF_BT_MAC): SelectSelector(
                             SelectSelectorConfig(
@@ -142,7 +163,11 @@ class BleFlowMixin:
             CONF_LINE_WIDTH: profile.width // 12,
         }
         if entry is not None:
-            return self.async_update_reload_and_abort(entry, data_updates=data)  # type: ignore[attr-defined,no-any-return]
+            previous = profiles.get(entry.data.get(CONF_BLE_PROFILE, ""))
+            title = profile.name if previous and entry.title == previous.name else entry.title
+            return self.async_update_reload_and_abort(  # type: ignore[attr-defined,no-any-return]
+                entry, data_updates=data, title=title
+            )
         return self.async_create_entry(title=profile.name, data=data)  # type: ignore[attr-defined,no-any-return]
 
     async def _probe_ble_model(
@@ -156,8 +181,15 @@ class BleFlowMixin:
         try:
             async with open_ble_printer(self.hass, mac, timeout) as link:
                 model = await link.read_model()
+                name = link.advertised_name
         except BlePrinterMismatchError:
             return "ble_model_mismatch"
         except BLE_ERRORS:
             return "ble_cannot_connect"
-        return None if profile.matches_model(model) else "ble_model_mismatch"
+        if profile.dialect == CRAFTSCO_4777_DIALECT:
+            matches = craftsco_4777_variant(name, model) is not None
+        elif is_craftsco_4777_name(name) or is_craftsco_4777_name(model):
+            return "ble_use_4777_profile"
+        else:
+            matches = profile.matches_model(model)
+        return None if matches else "ble_model_mismatch"

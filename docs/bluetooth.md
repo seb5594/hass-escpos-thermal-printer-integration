@@ -29,6 +29,18 @@ devices using the Lujiang command set. BLE print jobs use raster graphics for
 text, images, QR codes, and software barcodes. Image size must fit the printhead.
 BLE printing does not require a system PIN or pairing in the phone's settings.
 
+### Crafts&Co Fichero Mini Pocket Printer (4777)
+
+Choose **Crafts&Co Fichero Mini Pocket Printer (4777)** if the Bluetooth
+name begins with `CRAFTS&CO|4777` or `CRAFTS&CO_4777`. The profile uses
+the firmware-specific commands for a 384-dot continuous-paper raster.
+Test printing with the compressed raster format and standalone paper
+feed were confirmed on a `CRAFTS&CO|4777` device with firmware V3.20.
+If you previously added the device with the generic LuckPrinter profile,
+open the integration entry's menu, choose **Reconfigure**, and select
+the 4777 profile. The address and existing entities carry over.
+[Fichero Printer app](https://play.google.com/store/apps/details?id=com.lj.fichero)
+
 ### Fichero Mini Pocket Printer (3561)
 
 Choose **Fichero Mini Pocket Printer (3561)** for the 203 dpi model. This

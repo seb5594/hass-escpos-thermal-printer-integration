@@ -7,6 +7,26 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+### Added
+
+- Crafts&Co Fichero Mini Pocket Printer (4777) profile. Selects the
+  matching BLE raster format and print commands from the advertisement
+  and firmware model, including compressed raster on the older variant.
+
+### Fixed
+
+- Pace compressed BLE raster writes on the Crafts&Co 4777 and report
+  the printer's receive-buffer overrun notifications.
+- Update the Last Print sensor as soon as a print succeeds.
+
+- Standalone paper feed on the Crafts&Co 4777 now opens and closes a
+  firmware-specific printer job, with no raster data.
+
+- The BLE reconfiguration dialog suggests the 4777 profile for an existing
+  entry when Home Assistant sees its advertisement.
+- Printer buttons report the entry as unavailable during reload instead of
+  accessing missing runtime data.
+
 ## [2026.11.19.1] - 2026-11-19
 
 ### Added
