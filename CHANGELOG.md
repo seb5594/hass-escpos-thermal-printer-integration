@@ -15,6 +15,8 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 - LuckPrinter raster jobs support text, images, QR codes, and software
   barcodes through the existing print actions. Print completion is confirmed
   by the device.
+- Fichero Mini Pocket Printer (3561) preset for the 203 dpi, 384-dot
+  continuous-paper model sold by Action.
 
 ## [2026.11.19] - 2026-11-19
 

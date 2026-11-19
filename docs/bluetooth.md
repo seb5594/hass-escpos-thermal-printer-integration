@@ -16,6 +16,15 @@ devices using the Lujiang command set. BLE print jobs use raster graphics for
 text, images, QR codes, and software barcodes. Image size must fit the printhead.
 BLE printing does not require a system PIN or pairing in the phone's settings.
 
+### Fichero Mini Pocket Printer (3561)
+
+Choose **Fichero Mini Pocket Printer (3561)** for the 203 dpi model. This
+preset uses the 384-dot Lujiang raster mode for continuous paper. Check
+the model number on the printer or packaging before selecting the preset,
+since the 300 dpi Fichero pocket printer uses a different printhead.
+[Action's 3561 manual](https://asset.action.com/image/upload/v1730448470/Final/Documents/Quality%20Product%20Documents/handleiding_fichero_thermal_pocket_printer_set_1.pdf)
+· [Lujiang protocol reference](https://github.com/ChiaraCannolee/thermal-pocket-printer-basic/blob/main/PROTOCOL.md)
+
 ## Bluetooth Classic (RFCOMM)
 
 For portable, battery-powered ESC/POS printers (Netum, MUNBYN, POS-58 generics, Phomemo Classic line).
