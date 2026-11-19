@@ -69,11 +69,21 @@ jobs:
           fi
           echo "body_path=release-body.md" >> "$GITHUB_OUTPUT"
 
+      - name: Build the HACS package
+        run: |
+          # HACS downloads this zip (hacs.json: zip_release) and unpacks it into
+          # custom_components/escpos_printer, so the files sit at the zip's root.
+          cd custom_components/escpos_printer
+          zip -r -q ../../escpos_printer.zip . -x '*__pycache__*' '*.pyc'
+          cd ../..
+          unzip -l escpos_printer.zip | grep -q 'manifest.json'
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: ${{ steps.notes.outputs.body_path }}
+          files: escpos_printer.zip
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
