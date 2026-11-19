@@ -7,11 +7,7 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
-### Added
-
-- Crafts&Co Fichero Mini Pocket Printer (4777) profile. Selects the
-  matching BLE raster format and print commands from the advertisement
-  and firmware model, including compressed raster on the older variant.
+## [2026.11.19.2b3] - 2026-11-19
 
 ### Fixed
 
@@ -19,8 +15,25 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
   the printer's receive-buffer overrun notifications.
 - Update the Last Print sensor as soon as a print succeeds.
 
+
+## [2026.11.19.2b2] - 2026-11-19
+
+### Fixed
+
 - Standalone paper feed on the Crafts&Co 4777 now opens and closes a
-  firmware-specific printer job, with no raster data.
+  firmware-specific printer job, with no raster data. Printing was
+  confirmed on a Crafts&Co 4777 with firmware V3.20.
+
+
+## [2026.11.19.2b1] - 2026-11-19
+
+### Added
+
+- Crafts&Co Fichero Mini Pocket Printer (4777) profile. Selects the
+  matching BLE raster format and print commands from the advertisement
+  and firmware model, including compressed raster on the older variant.
+
+### Fixed
 
 - The BLE reconfiguration dialog suggests the 4777 profile for an existing
   entry when Home Assistant sees its advertisement.
@@ -1737,7 +1750,10 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 Earlier releases: see git history.
 
-[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.1...HEAD
+[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.2b3...HEAD
+[2026.11.19.2b3]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.2b2...2026.11.19.2b3
+[2026.11.19.2b2]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.2b1...2026.11.19.2b2
+[2026.11.19.2b1]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.1...2026.11.19.2b1
 [2026.11.19.1]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19...2026.11.19.1
 [1.2.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.0.0...v1.1.0
