@@ -7,6 +7,8 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+## [2026.11.19.2b1] - 2026-11-19
+
 ### Added
 
 - Crafts&Co Fichero Mini Pocket Printer (4777) profile. Selects the
@@ -1730,7 +1732,8 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 Earlier releases: see git history.
 
-[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.1...HEAD
+[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.2b1...HEAD
+[2026.11.19.2b1]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.1...2026.11.19.2b1
 [2026.11.19.1]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19...2026.11.19.1
 [1.2.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/cognitivegears/ha-escpos-thermal-printer/compare/v1.0.0...v1.1.0
