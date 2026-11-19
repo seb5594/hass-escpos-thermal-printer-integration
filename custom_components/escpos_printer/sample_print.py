@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 
+from .const import CONF_BLE_PROFILE
 from .text_effects.box import render_box
 from .text_effects.table import render_table
 
@@ -34,6 +35,9 @@ async def async_print_sample(hass: HomeAssistant, entry: EscposConfigEntry) -> N
     from . import _shared_print_config  # noqa: PLC0415 (avoid import cycle at module load)
 
     adapter = entry.runtime_data.adapter
+    if CONF_BLE_PROFILE in entry.data:
+        await adapter.print_text(hass, text=f"Test print\n{entry.title}", cut="none")
+        return
     line_width = _shared_print_config(entry)["line_width"]
     logo = await hass.async_add_executor_job(_logo_data_uri)
 

@@ -7,6 +7,19 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+### Added
+
+- Fichero Label Printer (D11s) preset for Action article 3212141, with a
+  96-dot printhead and automatic advance to the next label.
+- Bluetooth Low Energy setup uses Home Assistant's shared Bluetooth scanner,
+  including connectable proxies. The setup checks the printer model over GATT
+  and offers address entry for devices with unclear names.
+- LuckPrinter raster jobs support text, images, QR codes, and software
+  barcodes through the existing print actions. Print completion is confirmed
+  by the device.
+- Fichero Mini Pocket Printer (3561) preset for the 203 dpi, 384-dot
+  continuous-paper model sold by Action.
+
 ## [2026.11.19] - 2026-11-19
 
 ### Added
