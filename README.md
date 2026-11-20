@@ -1,4 +1,6 @@
-# ESC/POS Thermal Printer for Home Assistant
+<h1 align="center">
+  <img src="custom_components/escpos_printer/brand/logo@2x.png" alt="ESC/POS Thermal Printer for Home Assistant" width="360" height="138">
+</h1>
 
 [![Validate](https://github.com/cognitivegears/ha-escpos-thermal-printer/actions/workflows/validate.yml/badge.svg)](https://github.com/cognitivegears/ha-escpos-thermal-printer/actions/workflows/validate.yml)
 [![Hassfest](https://github.com/cognitivegears/ha-escpos-thermal-printer/actions/workflows/hassfest.yml/badge.svg)](https://github.com/cognitivegears/ha-escpos-thermal-printer/actions/workflows/hassfest.yml)
