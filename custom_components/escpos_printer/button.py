@@ -6,10 +6,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 
+from .const import DOMAIN
 from .device import build_device_info
 from .sample_print import async_print_sample
 from .services._handler_utils import _wrap_unexpected
@@ -50,7 +52,16 @@ class _EscposButton(ButtonEntity):
     def device_info(self) -> DeviceInfo:
         return build_device_info(self._entry)
 
+    @property
+    def available(self) -> bool:
+        """Report whether the current entry has a loaded printer adapter."""
+        return hasattr(self._entry, "runtime_data")
+
     async def async_press(self) -> None:
+        if self._entry.state is not ConfigEntryState.LOADED or not self.available:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="printer_entry_unavailable"
+            )
         try:
             await self._press()
         except HomeAssistantError:

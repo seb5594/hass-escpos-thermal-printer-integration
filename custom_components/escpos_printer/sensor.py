@@ -19,7 +19,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 
 from .bluez import query_bt_battery_percentage
@@ -145,7 +145,7 @@ class LastPrintSensor(SensorEntity):
     _attr_translation_key = "last_print"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_should_poll = True
+    _attr_should_poll = False
 
     def __init__(self, entry: ConfigEntry) -> None:
         self._entry = entry
@@ -155,7 +155,23 @@ class LastPrintSensor(SensorEntity):
     def device_info(self) -> DeviceInfo:
         return build_device_info(self._entry)
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        runtime = getattr(self._entry, "runtime_data", None)
+        if runtime is not None:
+            self.async_on_remove(runtime.adapter.add_print_listener(self._async_print_completed))
+        self._read_last_print()
+
+    @callback
+    def _async_print_completed(self) -> None:
+        self._read_last_print()
+        self.async_write_ha_state()
+
     async def async_update(self) -> None:
+        self._read_last_print()
+
+    @callback
+    def _read_last_print(self) -> None:
         runtime = getattr(self._entry, "runtime_data", None)
         adapter = getattr(runtime, "adapter", None) if runtime else None
         if adapter is None:
