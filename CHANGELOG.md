@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Add BLE raster printing with Crafts&Co 4777 and Fichero 3561 and D11s profiles
+
 ## [1.3.0] - 2026-11-22
 
 ### Breaking changes

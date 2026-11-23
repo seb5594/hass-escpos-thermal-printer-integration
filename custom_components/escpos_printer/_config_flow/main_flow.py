@@ -11,6 +11,7 @@ from homeassistant.core import callback
 import probatio as vol
 
 from ..const import (
+    CONF_BLE_PROFILE,
     CONF_CONNECTION_TYPE,
     CONNECTION_TYPE_BLUETOOTH,
     CONNECTION_TYPE_NETWORK,
@@ -18,6 +19,7 @@ from ..const import (
     CONNECTION_TYPE_USB,
     DOMAIN,
 )
+from .ble_steps import BleFlowMixin
 from .bluetooth_steps import BluetoothFlowMixin
 from .discovery_steps import DiscoveryFlowMixin
 from .import_steps import ImportFlowMixin
@@ -27,6 +29,7 @@ from .settings_steps import SettingsFlowMixin
 from .usb_steps import UsbFlowMixin
 
 _LOGGER = logging.getLogger(__name__)
+_BLE_CHOICE = "bluetooth_le"
 
 
 class EscposConfigFlow(
@@ -34,6 +37,7 @@ class EscposConfigFlow(
     DiscoveryFlowMixin,
     UsbFlowMixin,
     BluetoothFlowMixin,
+    BleFlowMixin,
     SerialFlowMixin,
     SettingsFlowMixin,
     ImportFlowMixin,
@@ -73,6 +77,8 @@ class EscposConfigFlow(
 
             if connection_type == CONNECTION_TYPE_USB:
                 return await self.async_step_usb_select()
+            if connection_type == _BLE_CHOICE:
+                return await self.async_step_bluetooth_le()
             if connection_type == CONNECTION_TYPE_BLUETOOTH:
                 return await self.async_step_bluetooth_select()
             if connection_type == CONNECTION_TYPE_SERIAL:
@@ -86,6 +92,7 @@ class EscposConfigFlow(
                         CONNECTION_TYPE_NETWORK: "Network (TCP/IP)",
                         CONNECTION_TYPE_USB: "USB (Direct)",
                         CONNECTION_TYPE_BLUETOOTH: "Bluetooth (RFCOMM)",
+                        _BLE_CHOICE: "Bluetooth Low Energy (BLE)",
                         CONNECTION_TYPE_SERIAL: "Serial (UART/RS-232)",
                     }
                 ),
@@ -110,6 +117,8 @@ class EscposConfigFlow(
         if connection_type == CONNECTION_TYPE_USB:
             return await self.async_step_reconfigure_usb()
         if connection_type == CONNECTION_TYPE_BLUETOOTH:
+            if CONF_BLE_PROFILE in entry.data:
+                return await self.async_step_reconfigure_bluetooth_le(user_input)
             return await self.async_step_reconfigure_bluetooth()
         if connection_type == CONNECTION_TYPE_SERIAL:
             return await self.async_step_reconfigure_serial()

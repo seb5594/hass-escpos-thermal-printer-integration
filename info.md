@@ -23,3 +23,5 @@ After install, restart Home Assistant and add the integration from **Settings â†
 ## Documentation
 
 See the [README](https://github.com/cognitivegears/ha-escpos-thermal-printer#readme) and the [docs/](https://github.com/cognitivegears/ha-escpos-thermal-printer/tree/main/docs) folder for the full configuration reference, automation examples, troubleshooting, and known limitations.
+
+For a BLE printer, select **Bluetooth Low Energy (BLE)** in the setup dialog.

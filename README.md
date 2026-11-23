@@ -55,6 +55,8 @@ start printing in minutes.
 - **USB printers:** Connected directly to your Home Assistant host (requires libusb)
 - **Bluetooth printers:** Linux host with kernel `AF_BLUETOOTH` support;
   printer paired on the host before adding to HA. See [Bluetooth printers](docs/bluetooth.md).
+- **Bluetooth LE printers:** Use a local adapter or a connectable Bluetooth proxy.
+  [Bluetooth LE setup](docs/bluetooth.md#bluetooth-low-energy-ble)
 - **Serial printers:** Linux host with serial port access (`dialout` group); or use
   an ESPHome serial proxy over the network. See [Serial printers](docs/serial.md).
 
