@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Add German translations and parity coverage
+
 ## [1.3.0] - 2026-11-22
 
 ### Breaking changes
