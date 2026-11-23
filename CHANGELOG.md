@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Print emoji with a bundled monochrome font
+
+### Added
+
+- Print emoji with a bundled monochrome font
+
 ## [1.3.0] - 2026-11-22
 
 ### Breaking changes
