@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager, suppress
 import logging
 from struct import pack, unpack_from
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from zlib import compress
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -56,6 +56,42 @@ _COMPRESSED_CHUNK_DELAY = 0.04
 _REPLY_TIMEOUT = 5
 _PRINT_TIMEOUT = 60
 _FATAL_STATUS = 0x56  # Cover open, paper out, or printhead overheated.
+
+
+_AD_LOCAL_NAME_TYPES = (0x08, 0x09)  # shortened / complete local name
+
+
+def _name_from_raw_advertisement(raw: bytes) -> str:
+    """Read the local name out of raw advertisement data, ignoring undecodable bytes."""
+    position = 0
+    while position + 1 < len(raw):
+        length = raw[position]
+        if length == 0:
+            break
+        if raw[position + 1] in _AD_LOCAL_NAME_TYPES:
+            text = raw[position + 2 : position + 1 + length].decode("utf-8", errors="ignore")
+            return "".join(char for char in text if char.isprintable()).strip()
+        position += length + 1
+    return ""
+
+
+def advertised_name(info: Any, fallback: str = "") -> str:
+    """The printer's advertised name, recovered from the raw data when needed.
+
+    Some firmwares (the Crafts&Co 4777) send bytes that are not valid text after
+    the name. The Bluetooth stack then reports the address as the name, so the
+    printer would not be recognised by it. The raw advertisement still holds it.
+    """
+    name = str(getattr(info, "name", "") or fallback)
+    address = str(getattr(info, "address", ""))
+    if name and name.upper() != address.upper():
+        return name
+    raw = getattr(info, "raw", None)
+    if isinstance(raw, bytes | bytearray) and (
+        recovered := _name_from_raw_advertisement(bytes(raw))
+    ):
+        return recovered
+    return name
 
 
 class BlePrinterMismatchError(Exception):
@@ -256,14 +292,14 @@ async def open_ble_printer(
     if device is None:
         raise BleakError("BLE printer is not visible to a connectable scanner")
     info = bluetooth.async_last_service_info(hass, mac, connectable=True) if bluetooth else None
-    advertised_name = info.name if info else device.name
+    printer_name = advertised_name(info, device.name) if info else device.name
     async with asyncio.timeout(timeout):
         client = await establish_connection(
             BleakClientWithServiceCache, device, "BLE printer", max_attempts=2
         )
     try:
         write, notify = _uart(client)
-        link = BlePrinterLink(client, write, advertised_name or "")
+        link = BlePrinterLink(client, write, printer_name or "")
         async with asyncio.timeout(_REPLY_TIMEOUT):
             await client.start_notify(notify, link.received)
         yield link

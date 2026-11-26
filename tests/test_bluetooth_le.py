@@ -497,3 +497,39 @@ async def test_craftsco_4777_large_compressed_raster(overrun):  # type: ignore[n
             assert max(map(len, chunks)) == 100
             assert decompress(b"".join(chunks)[10:]) == pixels
             assert sleep.await_args_list.count(((0.04,), {})) == len(chunks)
+
+
+def _raw_advertisement(name: bytes) -> bytes:
+    flags = b"\x02\x01\x06"
+    return flags + bytes([len(name) + 1, 0x09]) + name
+
+
+def test_a_name_with_invalid_bytes_is_recovered_from_the_raw_advertisement():
+    """The 4777 appends bytes that are not text; the stack then reports the address."""
+    from custom_components.escpos_printer.capabilities.ble_profiles import craftsco_4777_variant
+    from custom_components.escpos_printer.printer.ble_transport import advertised_name
+
+    address = "5E:55:09:00:22:A0"
+    info = SimpleNamespace(
+        name=address,
+        address=address,
+        raw=_raw_advertisement(b"CRAFTS&CO|4777_BLE\xff\xfe\x80\x81"),
+    )
+    name = advertised_name(info)
+    assert name == "CRAFTS&CO|4777_BLE"
+    assert craftsco_4777_variant(name, "") == "compressed"
+
+
+def test_a_readable_name_is_left_alone():
+    from custom_components.escpos_printer.printer.ble_transport import advertised_name
+
+    info = SimpleNamespace(name="Printer", address="AA:BB:CC:DD:EE:FF", raw=b"")
+    assert advertised_name(info) == "Printer"
+    assert advertised_name(SimpleNamespace(name="", address="AA"), "Fallback") == "Fallback"
+
+
+def test_an_address_stays_when_no_raw_data_exists():
+    from custom_components.escpos_printer.printer.ble_transport import advertised_name
+
+    info = SimpleNamespace(name="AA:BB:CC:DD:EE:FF", address="AA:BB:CC:DD:EE:FF", raw=None)
+    assert advertised_name(info) == "AA:BB:CC:DD:EE:FF"
