@@ -62,13 +62,15 @@ def _var(value):
 
 
 def _managed_device(mac, *, paired, name="Netum NT-1809DD", cls=0x680, rssi=-60):
-    return {
+    device = {
         "Address": _var(mac),
         "Alias": _var(name),
         "Paired": _var(paired),
-        "Class": _var(cls),
         "RSSI": _var(rssi),
     }
+    if cls is not None:  # Low Energy devices report no class
+        device["Class"] = _var(cls)
+    return device
 
 
 def _scan_device(mac=PRINTER_MAC, *, paired=False, name="Netum NT-1809DD"):
@@ -144,9 +146,24 @@ class TestPairingAgent:
         assert _call_agent(agent, "RequestPinCode", "/dev") == "1234"
         assert _call_agent(agent, "RequestPasskey", "/dev") == 1234
 
-    def test_non_numeric_pin_gives_zero_passkey(self):
-        agent = build_pairing_agent_class()("abcd")
-        assert _call_agent(agent, "RequestPasskey", "/dev") == 0
+    @pytest.mark.parametrize("pin", ["abcd", "1234567", "²", "99999999999"])
+    def test_pins_that_are_not_passkeys_are_rejected(self, pin):
+        agent = build_pairing_agent_class()(pin)
+        with pytest.raises(DBusError):
+            _call_agent(agent, "RequestPasskey", "/dev")
+
+    def test_agent_only_answers_for_the_device_being_paired(self):
+        agent = build_pairing_agent_class()("1234", device_path="/dev/mine")
+        assert _call_agent(agent, "RequestPinCode", "/dev/mine") == "1234"
+        for method, args in (
+            ("RequestPinCode", ("/dev/other",)),
+            ("RequestPasskey", ("/dev/other",)),
+            ("RequestConfirmation", ("/dev/other", 123456)),
+            ("RequestAuthorization", ("/dev/other",)),
+            ("AuthorizeService", ("/dev/other", "uuid")),
+        ):
+            with pytest.raises(DBusError):
+                _call_agent(agent, method, *args)
 
     def test_exports_the_bluez_agent_interface(self):
         agent = build_pairing_agent_class()()
@@ -202,8 +219,8 @@ class TestPairWithPins:
         agent_holder = {}
         real_cls = build_pairing_agent_class()
 
-        def make_agent():
-            agent_holder["agent"] = real_cls()
+        def make_agent(**kwargs):
+            agent_holder["agent"] = real_cls(**kwargs)
             return agent_holder["agent"]
 
         async def pair_attempt(_device, _timeout):
@@ -217,7 +234,9 @@ class TestPairWithPins:
             patch.object(bluez_pairing, "_proxy_interface", AsyncMock(return_value=manager)),
             patch.object(bluez_pairing, "_call_pair", pair_attempt),
         ):
-            result = await bluez_pairing._pair_with_pins(bus, object(), ("0000", "1234"), 5.0)
+            result = await bluez_pairing._pair_with_pins(
+                bus, object(), "/dev", ("0000", "1234"), 5.0
+            )
 
         assert result.success is True
         assert seen_pins == ["0000", "1234"]
@@ -232,7 +251,9 @@ class TestPairWithPins:
             patch.object(bluez_pairing, "_proxy_interface", AsyncMock(return_value=manager)),
             patch.object(bluez_pairing, "_call_pair", attempts),
         ):
-            result = await bluez_pairing._pair_with_pins(bus, object(), ("0000", "1234"), 5.0)
+            result = await bluez_pairing._pair_with_pins(
+                bus, object(), "/dev", ("0000", "1234"), 5.0
+            )
 
         assert result.error == PAIR_ERROR_TIMEOUT
         assert attempts.await_count == 1
@@ -290,11 +311,93 @@ class TestPairBluetoothDevice:
         ):
             result = await bluez_pairing.pair_bluetooth_device(PRINTER_MAC, pin="4321")
         assert result.success is True
-        assert pair.await_args.args[2] == ("4321",)
+        assert pair.await_args.args[3] == ("4321",)
         device.set_trusted.assert_awaited_once_with(True)
 
 
+class TestPinValidation:
+    @pytest.mark.parametrize("pin", ["0", "1234", "abcd-EF12", "a" * 16, "p@ss word"])
+    def test_accepts_printable_ascii_up_to_16_characters(self, pin):
+        assert bluez_pairing.is_valid_pin(pin)
+
+    @pytest.mark.parametrize("pin", ["", "a" * 17, "²", "pin\n", "päss", "\x00"])
+    def test_rejects_everything_else(self, pin):
+        assert not bluez_pairing.is_valid_pin(pin)
+
+
+class TestFindDevice:
+    @pytest.mark.asyncio
+    async def test_a_device_that_timed_out_of_the_cache_is_found_again(self):
+        adapter_only = {"/hci0": {"org.bluez.Adapter1": {}}}
+        with_device = {
+            **adapter_only,
+            "/dev": {"org.bluez.Device1": _managed_device(PRINTER_MAC, paired=False)},
+        }
+        with (
+            patch.object(
+                bluez_pairing,
+                "_get_managed_objects",
+                AsyncMock(side_effect=[adapter_only, with_device]),
+            ),
+            patch.object(bluez_pairing, "_run_inquiry", AsyncMock()) as inquiry,
+        ):
+            _managed, path = await bluez_pairing._find_device(MagicMock(), PRINTER_MAC)
+        assert path == "/dev"
+        inquiry.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_a_known_device_needs_no_inquiry(self):
+        managed = {"/dev": {"org.bluez.Device1": _managed_device(PRINTER_MAC, paired=True)}}
+        with (
+            patch.object(bluez_pairing, "_get_managed_objects", AsyncMock(return_value=managed)),
+            patch.object(bluez_pairing, "_run_inquiry", AsyncMock()) as inquiry,
+        ):
+            _managed, path = await bluez_pairing._find_device(MagicMock(), PRINTER_MAC)
+        assert path == "/dev"
+        inquiry.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_device_that_never_shows_up_is_not_found(self):
+        adapter_only = {"/hci0": {"org.bluez.Adapter1": {}}}
+        with (
+            patch.object(
+                bluez_pairing, "_get_managed_objects", AsyncMock(return_value=adapter_only)
+            ),
+            patch.object(bluez_pairing, "_run_inquiry", AsyncMock()),
+        ):
+            _managed, path = await bluez_pairing._find_device(MagicMock(), PRINTER_MAC)
+        assert path is None
+
+    @pytest.mark.asyncio
+    async def test_a_failing_trust_call_does_not_fail_the_pairing(self):
+        device = SimpleNamespace(set_trusted=AsyncMock(side_effect=RuntimeError("denied")))
+        managed = {"/dev": {"org.bluez.Device1": _managed_device(PRINTER_MAC, paired=True)}}
+        with (
+            patch.object(bluez_pairing, "_get_managed_objects", AsyncMock(return_value=managed)),
+            patch.object(bluez_pairing, "_proxy_interface", AsyncMock(return_value=device)),
+        ):
+            result = await bluez_pairing._pair_with_agent(MagicMock(), PRINTER_MAC, ("0000",), 5.0)
+        assert result.success is True
+
+
 class TestDiscovery:
+    @pytest.mark.asyncio
+    async def test_low_energy_devices_from_the_cache_are_not_listed(self):
+        managed = {
+            "/hci0": {"org.bluez.Adapter1": {}},
+            "/classic": {"org.bluez.Device1": _managed_device("00:00:00:00:00:01", paired=False)},
+            "/le": {
+                "org.bluez.Device1": _managed_device("00:00:00:00:00:02", paired=False, cls=None)
+            },
+        }
+        with (
+            patch.object(bluez_pairing, "_connect_system_bus", AsyncMock(return_value=MagicMock())),
+            patch.object(bluez_pairing, "_get_managed_objects", AsyncMock(return_value=managed)),
+            patch.object(bluez_pairing, "_run_inquiry", AsyncMock()),
+        ):
+            devices = await bluez_pairing.discover_bluetooth_devices(0)
+        assert [d["mac"] for d in devices] == ["00:00:00:00:00:01"]
+
     @pytest.mark.asyncio
     async def test_no_bus_returns_empty(self):
         with patch.object(bluez_pairing, "_connect_system_bus", AsyncMock(return_value=None)):
@@ -387,6 +490,18 @@ class TestScanStep:
             await flow._bt_task
             done = await flow.async_step_bluetooth_scan()
         assert done["step_id"] == "bluetooth_no_devices"
+
+    @pytest.mark.asyncio
+    async def test_failed_scan_keeps_the_paired_printers_reachable(self, hass):
+        flow = _new_flow(hass)
+        flow._paired_bt_devices = [_scan_device(paired=True)]
+        scan, gate = _gated([])
+        with patch(STEPS + "_scan_bluetooth_devices", scan):
+            await flow.async_step_bluetooth_scan()
+            gate.set()
+            await flow._bt_task
+            done = await flow.async_step_bluetooth_scan()
+        assert done["step_id"] == "bluetooth_select"
 
     @pytest.mark.asyncio
     async def test_crashed_scan_is_treated_as_empty(self, hass):
@@ -575,3 +690,26 @@ class TestFlowHelpers:
             result = await bluetooth_helpers._pair_bluetooth_device(PRINTER_MAC, "1234")
         assert result.success is True
         pair.assert_awaited_once_with(PRINTER_MAC, pin="1234")
+
+
+class TestPinAndNameHandling:
+    @pytest.mark.asyncio
+    async def test_an_invalid_pin_asks_again(self, hass):
+        flow = _new_flow(hass)
+        flow._pending_bt = {"printer_name": "Printer", "mac": PRINTER_MAC}
+        for pin in ("", "x" * 17, "²"):
+            result = await flow.async_step_bluetooth_pin({CONF_BT_PIN: pin})
+            assert result["type"] == "form"
+            assert result["errors"] == {"base": "bt_pin_invalid"}
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("Netum NT-1809DD", "Netum NT-1809DD"),
+            ("[click](http://evil.example)", "click http://evil.example"),
+            ("**bold** <b>x</b>\n", "bold b x /b"),
+            ("a" * 100, "a" * 64),
+        ],
+    )
+    def test_device_names_are_made_markdown_safe(self, raw, expected):
+        assert bluetooth_helpers.markdown_safe_name(raw) == expected

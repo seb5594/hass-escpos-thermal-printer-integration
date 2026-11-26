@@ -233,3 +233,16 @@ def _build_bt_device_choices(
     choices[BT_SCAN_KEY] = "Scan for nearby devices..."
     choices[BT_MANUAL_ENTRY_KEY] = "Manual MAC entry..."
     return choices
+
+
+_MARKDOWN_SPECIALS = str.maketrans(dict.fromkeys("[]()<>*_`\\|#~!", " "))
+
+
+def markdown_safe_name(name: str, limit: int = 64) -> str:
+    """Make a device's advertised name safe for a markdown placeholder.
+
+    Nearby unpaired devices choose their own name, and the setup dialogs
+    render markdown, so control characters and markup are replaced.
+    """
+    cleaned = "".join(char if char.isprintable() else " " for char in name)
+    return " ".join(cleaned.translate(_MARKDOWN_SPECIALS).split())[:limit]

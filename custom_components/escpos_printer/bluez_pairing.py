@@ -45,6 +45,13 @@ AGENT_CAPABILITY = "KeyboardDisplay"
 # Seconds a BR/EDR inquiry needs to see most devices in range.
 DEFAULT_SCAN_SECONDS = 12.0
 PAIR_TIMEOUT_SECONDS = 30.0
+# A device that is not in bluez's tree when the user submits the picker has
+# usually timed out of the cache; a short inquiry brings it back if it is on.
+REDISCOVER_SECONDS = 8.0
+
+# Legacy PINs are 1-16 printable ASCII characters; passkeys are 0-999999.
+MAX_PIN_LENGTH = 16
+MAX_PASSKEY = 999_999
 
 # Legacy PINs that thermal printers ship with, tried in this order before
 # the user is asked for one.
@@ -79,6 +86,11 @@ class PairingResult:
 
     success: bool
     error: str | None = None
+
+
+def is_valid_pin(pin: str) -> bool:
+    """Whether bluez accepts ``pin`` as a legacy PIN (1-16 printable ASCII characters)."""
+    return 1 <= len(pin) <= MAX_PIN_LENGTH and pin.isascii() and pin.isprintable()
 
 
 def classify_bluez_error(error_type: str | None) -> str:
@@ -140,6 +152,10 @@ async def discover_bluetooth_devices(
     if managed is None:
         return []
     devices = parse_bluez_devices(managed, paired_only=False)
+    # bluez keeps every device it has ever seen, including LE advertisers that
+    # Home Assistant's Bluetooth scan found. Only Classic devices report a
+    # class, so unpaired devices without one cannot be paired for RFCOMM.
+    devices = [device for device in devices if device["paired"] or device["class"] is not None]
     devices.sort(key=lambda d: (not d["paired"], -(d["rssi"] if d["rssi"] is not None else -999)))
     return devices
 
@@ -193,26 +209,43 @@ async def pair_bluetooth_device(
 async def _pair_with_agent(
     bus: Any, mac: str, pins: tuple[str, ...], timeout: float
 ) -> PairingResult:
-    managed = await _get_managed_objects(bus) or {}
-    device_path = _find_object_path(managed, DEVICE_IFACE, mac)
+    managed, device_path = await _find_device(bus, mac)
     if device_path is None:
         return PairingResult(False, PAIR_ERROR_NOT_FOUND)
 
     device = await _proxy_interface(bus, device_path, DEVICE_IFACE)
     if not _is_paired(managed, device_path):
-        result = await _pair_with_pins(bus, device, pins, timeout)
+        result = await _pair_with_pins(bus, device, device_path, pins, timeout)
         if not result.success:
             return result
-    # Trust is what makes bluez reconnect the printer after a reboot.
-    await device.set_trusted(True)
+    # Trust is what makes bluez reconnect the printer after a reboot. The
+    # printer is paired either way, so a failure here must not fail the flow.
+    try:
+        await device.set_trusted(True)
+    except Exception as exc:
+        _LOGGER.warning("Paired %s but could not mark it trusted: %s", mac, exc)
     return PairingResult(True)
 
 
+async def _find_device(bus: Any, mac: str) -> tuple[dict[str, Any], str | None]:
+    """Look ``mac`` up in bluez's tree, running a short inquiry if it is missing."""
+    managed = await _get_managed_objects(bus) or {}
+    device_path = _find_object_path(managed, DEVICE_IFACE, mac)
+    if device_path is not None:
+        return managed, device_path
+    adapter_path = _find_object_path(managed, ADAPTER_IFACE)
+    if adapter_path is None:
+        return managed, None
+    await _run_inquiry(bus, adapter_path, REDISCOVER_SECONDS)
+    managed = await _get_managed_objects(bus) or {}
+    return managed, _find_object_path(managed, DEVICE_IFACE, mac)
+
+
 async def _pair_with_pins(
-    bus: Any, device: Any, pins: tuple[str, ...], timeout: float
+    bus: Any, device: Any, device_path: str, pins: tuple[str, ...], timeout: float
 ) -> PairingResult:
     """Register the agent and call ``Device1.Pair`` once per candidate PIN."""
-    agent = build_pairing_agent_class()()
+    agent = build_pairing_agent_class()(device_path=device_path)
     bus.export(AGENT_PATH, agent)
     manager = await _proxy_interface(bus, "/org/bluez", AGENT_MANAGER_IFACE)
     await manager.call_register_agent(AGENT_PATH, AGENT_CAPABILITY)

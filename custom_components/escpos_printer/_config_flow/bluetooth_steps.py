@@ -21,7 +21,7 @@ from homeassistant.data_entry_flow import section
 from homeassistant.exceptions import HomeAssistantError
 import probatio as vol
 
-from ..bluez_pairing import PAIR_ERROR_AUTH_FAILED, PairingResult
+from ..bluez_pairing import PAIR_ERROR_AUTH_FAILED, PairingResult, is_valid_pin
 from ..capabilities import (
     PROFILE_AUTO,
     PROFILE_CUSTOM,
@@ -55,6 +55,7 @@ from .bluetooth_helpers import (
     _pair_bluetooth_device,
     _pair_error_to_key,
     _scan_bluetooth_devices,
+    markdown_safe_name,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -293,7 +294,9 @@ class BluetoothFlowMixin:
             self._show_all_bt_devices = False
             next_step = "bluetooth_select"
         else:
-            next_step = "bluetooth_no_devices"
+            # A failed scan (adapter off, rfkill) must not hide printers that are
+            # already paired: go back to the picker if it has anything to show.
+            next_step = "bluetooth_select" if self._paired_bt_devices else "bluetooth_no_devices"
         return self.async_show_progress_done(next_step_id=next_step)  # type: ignore[attr-defined,no-any-return]
 
     async def async_step_bluetooth_pair(
@@ -310,7 +313,7 @@ class BluetoothFlowMixin:
                 step_id="bluetooth_pair",
                 progress_action="bluetooth_pair",
                 progress_task=self._bt_task,
-                description_placeholders={"name": pending["printer_name"]},
+                description_placeholders={"name": markdown_safe_name(pending["printer_name"])},
             )
         task, self._bt_task = self._bt_task, None
         try:
@@ -364,10 +367,10 @@ class BluetoothFlowMixin:
         errors: dict[str, str] = {}
         if user_input is not None:
             pin = str(user_input.get(CONF_BT_PIN, "")).strip()
-            if pin:
+            if is_valid_pin(pin):
                 self._pending_bt["pin"] = pin
                 return await self.async_step_bluetooth_pair()
-            errors["base"] = "bt_pair_auth_failed"
+            errors["base"] = "bt_pin_invalid"
         elif "pin" in self._pending_bt:
             # A PIN was already submitted and refused again.
             errors["base"] = "bt_pair_auth_failed"
@@ -376,7 +379,9 @@ class BluetoothFlowMixin:
             step_id="bluetooth_pin",
             data_schema=vol.Schema({vol.Required(CONF_BT_PIN): str}),
             errors=errors,
-            description_placeholders={"name": self._pending_bt.get("printer_name", "")},
+            description_placeholders={
+                "name": markdown_safe_name(self._pending_bt.get("printer_name", ""))
+            },
         )
 
     async def async_step_bluetooth_channel_retry(
