@@ -12,8 +12,8 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
 )
-import probatio as vol
 
+from .._validation import vol
 from ..capabilities import (
     OPTION_CUSTOM,
     PROFILE_AUTO,

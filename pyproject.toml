@@ -186,6 +186,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = [
     "S101",    # use of assert
+    "TID251",  # tests exercise the library Home Assistant ships directly
     "S311",    # pseudo-random generators ok in tests
     "T201",    # print statements
     "PLR2004", # magic value comparisons
@@ -253,9 +254,10 @@ ignore = [
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # HA 2026.9+ validates with probatio; HA 2026.10+ type hints name probatio
-# types, so importing the real voluptuous package fails mypy. Matches HA
-# core's own ban. See CLAUDE.md and the dependency-pins skill.
-"voluptuous".msg = "use `import probatio as vol` (HA's validation library since 2026.9)"
+# types, so importing the real voluptuous package fails mypy. Both libraries
+# are imported in one place, `_validation.py`, which picks what Home Assistant ships.
+"voluptuous".msg = "use `from ._validation import vol` (resolves probatio or voluptuous)"
+"probatio".msg = "use `from ._validation import vol` (resolves probatio or voluptuous)"
 
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components.escpos_printer"]

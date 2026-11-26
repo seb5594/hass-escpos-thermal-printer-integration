@@ -7,6 +7,10 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
+### Changed
+
+- The validation library is imported through one module that uses `probatio` on Home Assistant 2026.9+ and falls back to `voluptuous` on older versions, and device targeting works with both the old and the new device registry, so the integration installs on Home Assistant 2026.5 and newer again.
+
 ## [2026.11.26] - 2026-11-26
 
 This release brings in upstream 1.3.0 (below), on top of the Bluetooth, Fichero and emoji additions of this fork.

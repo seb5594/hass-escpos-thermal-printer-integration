@@ -7,8 +7,8 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers.selector import SerialPortSelector
-import probatio as vol
 
+from .._validation import vol
 from ..capabilities import (
     PROFILE_AUTO,
     PROFILE_CUSTOM,

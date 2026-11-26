@@ -125,9 +125,12 @@ async def _async_get_target_entries(
             continue
 
         # Since HA 2026.8 a device belongs to exactly one config entry
-        # (DeviceEntry.config_entry_id); the old config_entries set is a
-        # deprecated wrapper around it.
-        config_entry_id = device.config_entry_id
+        # (DeviceEntry.config_entry_id); before that only the config_entries set exists.
+        config_entry_id = getattr(device, "config_entry_id", None) or next(
+            iter(device.config_entries), None
+        )
+        if config_entry_id is None:
+            continue
         entry = hass.config_entries.async_get_entry(config_entry_id)
         if entry is None or entry.domain != DOMAIN:
             _LOGGER.warning("Targeted device %s is not an ESC/POS printer; skipping", device_id)

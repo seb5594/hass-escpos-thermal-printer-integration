@@ -27,8 +27,8 @@ from homeassistant.helpers.selector import (
     NumberSelectorConfig,
     NumberSelectorMode,
 )
-import probatio as vol
 
+from .._validation import vol
 from ..capabilities import get_profile_codepages, resolve_profile_name, suggest_profile
 from ..const import (
     CONF_CODEPAGE,

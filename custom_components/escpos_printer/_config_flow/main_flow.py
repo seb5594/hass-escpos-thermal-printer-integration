@@ -9,8 +9,8 @@ from typing import Any
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
-import probatio as vol
 
+from .._validation import vol
 from ..bluez_pairing import PairingResult
 from ..const import (
     CONF_BLE_PROFILE,

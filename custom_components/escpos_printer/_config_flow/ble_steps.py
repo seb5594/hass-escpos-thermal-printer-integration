@@ -11,8 +11,8 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
 )
-import probatio as vol
 
+from .._validation import vol
 from ..capabilities.ble_profiles import (
     CRAFTSCO_4777_DIALECT,
     BlePrinterProfile,

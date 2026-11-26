@@ -6,8 +6,8 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigFlowResult
-import probatio as vol
 
+from .._validation import vol
 from ..capabilities import (
     PROFILE_AUTO,
     PROFILE_CUSTOM,
