@@ -7,7 +7,7 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 ## [Unreleased]
 
-## [2026.11.26.1-beta] - 2026-11-27
+## [2026.11.27-beta] - 2026-11-27
 
 Pre-release.
 
@@ -1805,8 +1805,8 @@ This release brings in upstream 1.3.0 (below), on top of the Bluetooth, Fichero 
 
 Earlier releases: see git history.
 
-[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.26.1-beta...HEAD
-[2026.11.26.1-beta]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.26...2026.11.26.1-beta
+[Unreleased]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.27-beta...HEAD
+[2026.11.27-beta]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.26...2026.11.27-beta
 [2026.11.26]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.2...2026.11.26
 [2026.11.19.2]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19.1...2026.11.19.2
 [2026.11.19.1]: https://github.com/seb5594/hass-escpos-thermal-printer-integration/compare/2026.11.19...2026.11.19.1
