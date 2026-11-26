@@ -76,7 +76,11 @@ class BleFlowMixin:
             if info and is_craftsco_4777_name(info.name) and CRAFTSCO_4777_DIALECT in profiles:
                 current[CONF_BLE_PROFILE] = CRAFTSCO_4777_DIALECT
         if current.get(CONF_BT_MAC) == _REFRESH:
+            # "Refresh list" is not an address: show the entry's own one again when
+            # reconfiguring, and leave the field empty for a new printer.
             current.pop(CONF_BT_MAC)
+            if CONF_BT_MAC in defaults:
+                current[CONF_BT_MAC] = defaults[CONF_BT_MAC]
         return self.async_show_form(  # type: ignore[attr-defined,no-any-return]
             step_id="reconfigure_bluetooth_le" if reconfigure else "bluetooth_le",
             data_schema=self.add_suggested_values_to_schema(  # type: ignore[attr-defined]

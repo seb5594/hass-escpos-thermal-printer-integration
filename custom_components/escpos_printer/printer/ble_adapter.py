@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import cache
 import logging
 from struct import pack
 from typing import TYPE_CHECKING, Any
@@ -28,6 +29,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 _LINE_DOTS = 24
+# The status probe connects over GATT, which is slower than a TCP probe but must not
+# hold the adapter lock (and delay queued prints) for the full configured timeout.
+_STATUS_PROBE_TIMEOUT = 8.0
 _QR_LEVELS: dict[int | str, int] = {
     QR_ECLEVEL_L: qrcode.constants.ERROR_CORRECT_L,
     QR_ECLEVEL_M: qrcode.constants.ERROR_CORRECT_M,
@@ -38,6 +42,13 @@ _QR_LEVELS: dict[int | str, int] = {
     "Q": qrcode.constants.ERROR_CORRECT_Q,
     "H": qrcode.constants.ERROR_CORRECT_H,
 }
+
+
+@cache
+def _text_line_height(font_size: int) -> int:
+    """Height in pixels of one rendered text line at ``font_size``."""
+    with render_text_image("Mg", font_size=font_size) as probe:
+        return probe.height
 
 
 class BleRasterJob(Escpos):
@@ -139,8 +150,8 @@ class BleRasterJob(Escpos):
         if style.get("bold"):
             bitmap = ImageChops.darker(bitmap, ImageChops.offset(bitmap, 1, 0))
         if underline := style.get("underline"):
-            # Match the configured weight on the printed line, including spaces.
-            line_height = round(bitmap.height / max(1, len(text.split("\n"))))
+            # Underline every rendered line, including the ones a long line wraps into.
+            line_height = _text_line_height(font_size) * scale_y
             for bottom in range(line_height, bitmap.height + 1, line_height):
                 bitmap.paste(0, (0, bottom - underline, bitmap.width, bottom))
         if style.get("invert"):
@@ -211,7 +222,9 @@ class BlePrinterAdapter(EscposPrinterAdapterBase):
             if not acquired:
                 return
             try:
-                async with open_ble_printer(hass, self._mac, self.config.timeout):
+                async with open_ble_printer(
+                    hass, self._mac, min(self.config.timeout, _STATUS_PROBE_TIMEOUT)
+                ):
                     pass
             except (*BLE_ERRORS, BlePrinterMismatchError) as err:
                 now = dt_util.utcnow()

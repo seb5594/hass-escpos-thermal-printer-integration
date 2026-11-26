@@ -111,6 +111,12 @@ async def test_ble_config_flow_and_print_service(hass):  # type: ignore[no-untyp
             DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
         )
         assert reconfigure["step_id"] == "reconfigure_bluetooth_le"
+        refreshed = await hass.config_entries.flow.async_configure(
+            reconfigure["flow_id"], {**data, "bt_mac": "__refresh__"}
+        )
+        assert refreshed["step_id"] == "reconfigure_bluetooth_le"
+        mac_key = next(key for key in refreshed["data_schema"].schema if key == "bt_mac")
+        assert mac_key.description["suggested_value"] == _MAC
         link.read_model.side_effect = None
         link.read_model.return_value = "DP-D1"
         result = await hass.config_entries.flow.async_configure(reconfigure["flow_id"], data)
@@ -491,3 +497,46 @@ async def test_craftsco_4777_large_compressed_raster(overrun):  # type: ignore[n
             assert max(map(len, chunks)) == 100
             assert decompress(b"".join(chunks)[10:]) == pixels
             assert sleep.await_args_list.count(((0.04,), {})) == len(chunks)
+
+
+def test_ble_underline_covers_every_wrapped_line():
+    """A long line that wraps is underlined once per rendered line, not only at the end."""
+    from custom_components.escpos_printer.text_effects.font_render import render_text_image
+
+    width = 384
+    text = "W" * 32
+    with (
+        render_text_image(text, font_size=19, max_width_px=width // 2) as wrapped,
+        render_text_image("Mg", font_size=19) as single,
+    ):
+        lines = round(wrapped.height / single.height)
+    assert lines >= 2  # the text really wraps at double width
+
+    job = BleRasterJob(BlePrinterProfile(name="Wide", width=width, dialect="lujiang"))
+    job.set(width=2, underline=1)
+    job.text(text)
+    raster = job.raster()
+    stride = width // 8
+    rows = [raster[8 + i * stride : 8 + (i + 1) * stride] for i in range(len(raster[8:]) // stride)]
+    underlined = sum(row == b"\xff" * stride for row in rows)
+    assert underlined == lines
+
+
+@pytest.mark.asyncio
+async def test_ble_status_probe_is_bounded_even_with_a_long_timeout(hass):  # type: ignore[no-untyped-def]
+    """The startup probe must not hold the adapter lock for the configured 300 seconds."""
+    from custom_components.escpos_printer.printer import ble_adapter
+    from custom_components.escpos_printer.printer.config import BluetoothPrinterConfig
+
+    profile = BlePrinterProfile(name="Wide", width=384, dialect="lujiang")
+    config = BluetoothPrinterConfig(mac="AA:BB:CC:DD:EE:FF", timeout=300.0, ble_profile=profile)
+    adapter = ble_adapter.BlePrinterAdapter(config, profile)
+
+    @asynccontextmanager
+    async def open_link(*args):
+        yield Mock()
+
+    opened = Mock(side_effect=open_link)
+    with patch.object(ble_adapter, "open_ble_printer", opened):
+        await adapter._status_check(hass)
+    assert opened.call_args.args[2] == ble_adapter._STATUS_PROBE_TIMEOUT
