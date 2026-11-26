@@ -91,6 +91,14 @@ def _render_emoji_png(
         max_width_px=max_width_px,
         align=align,
     )
+    from PIL import ImageOps  # noqa: PLC0415
+
+    # Alignment is applied by the printer over its real paper width: the canvas
+    # is only as wide as the profile claims, which is a guess on the default
+    # profile. Keep the lines aligned among themselves, then drop the empty sides.
+    box = ImageOps.invert(image).getbbox()
+    if box is not None:
+        image = image.crop((box[0], 0, box[2], image.height))
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
@@ -175,7 +183,7 @@ async def print_parts(
                 continue
             for png in pngs:
                 data_uri = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
-                await page.print_image(image=data_uri)
+                await page.print_image(image=data_uri, align=align)
         await page.cut_and_feed(cut, feed)
 
 

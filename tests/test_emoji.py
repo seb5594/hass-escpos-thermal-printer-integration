@@ -178,6 +178,28 @@ class TestPrintText:
         assert calls[3].args == (2,)
         assert calls[4].kwargs["mode"] == "FULL"
 
+    async def test_emoji_lines_are_aligned_by_the_printer_not_by_the_canvas(self, hass):
+        """A canvas as wide as the profile guess must not decide where the line lands."""
+        await _setup_entry(hass)
+        fake = MagicMock()
+        with patch("escpos.printer.Network", return_value=fake):
+            await hass.services.async_call(
+                DOMAIN,
+                "print_text_utf8",
+                {"text": "Door 🚪 open", "align": "center"},
+                blocking=True,
+            )
+        image = fake.image.call_args.args[0]
+        assert image.width < 384  # cropped to the ink, not padded to the fallback width
+        # The image is sent right after an alignment command for the printer.
+        sequence = [
+            (name, call.kwargs.get("align"))
+            for call in fake.method_calls
+            if (name := call[0]) in ("set", "image")
+        ]
+        image_at = next(i for i, (name, _) in enumerate(sequence) if name == "image")
+        assert sequence[image_at - 1] == ("set", "center")
+
     async def test_plain_text_still_takes_the_single_call_path(self, hass):
         await _setup_entry(hass)
         fake = MagicMock()

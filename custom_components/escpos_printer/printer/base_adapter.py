@@ -929,6 +929,7 @@ class _BatchPage:
         auto_resize: bool = False,
         feed: int | None = 0,
         ignore_profile_width: bool = False,
+        align: str | None = None,
     ) -> None:
         """Print an image on the held connection (mirrors ``adapter.print_image``).
 
@@ -949,6 +950,7 @@ class _BatchPage:
             width=width,
             dither=dither,
             auto_resize=auto_resize,
+            align=align,
         )
         if ignore_profile_width:
             with profile_width_bypass(self._printer):
