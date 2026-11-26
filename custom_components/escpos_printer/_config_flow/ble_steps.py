@@ -35,6 +35,7 @@ from ..printer.ble_transport import (
     BLE_ERRORS,
     BLE_PRINTER_SERVICES,
     BlePrinterMismatchError,
+    advertised_name,
     bluetooth_api,
     open_ble_printer,
 )
@@ -73,7 +74,11 @@ class BleFlowMixin:
             info = bluetooth.async_last_service_info(
                 self.hass, current[CONF_BT_MAC], connectable=True
             )
-            if info and is_craftsco_4777_name(info.name) and CRAFTSCO_4777_DIALECT in profiles:
+            if (
+                info
+                and is_craftsco_4777_name(advertised_name(info))
+                and CRAFTSCO_4777_DIALECT in profiles
+            ):
                 current[CONF_BLE_PROFILE] = CRAFTSCO_4777_DIALECT
         if current.get(CONF_BT_MAC) == _REFRESH:
             # "Refresh list" is not an address: show the entry's own one again when
@@ -114,18 +119,21 @@ class BleFlowMixin:
         """Show likely printers first while keeping unnamed devices selectable."""
         choices: list[SelectOptionDict] = []
         if bluetooth := bluetooth_api(self.hass):
-            devices = sorted(
-                bluetooth.async_discovered_service_info(self.hass, connectable=True),
-                key=lambda info: (
-                    not any(p.matches_advertisement(info.name) for p in profiles.values()),
-                    BLE_PRINTER_SERVICES.isdisjoint(uuid.lower() for uuid in info.service_uuids),
-                    info.name.casefold(),
-                    info.address,
-                ),
+            named = [
+                (advertised_name(info), info)
+                for info in bluetooth.async_discovered_service_info(self.hass, connectable=True)
+            ]
+            named.sort(
+                key=lambda item: (
+                    not any(p.matches_advertisement(item[0]) for p in profiles.values()),
+                    BLE_PRINTER_SERVICES.isdisjoint(uuid.lower() for uuid in item[1].service_uuids),
+                    item[0].casefold(),
+                    item[1].address,
+                )
             )
             choices.extend(
-                SelectOptionDict(value=info.address, label=f"{info.name} ({info.address})")
-                for info in devices
+                SelectOptionDict(value=info.address, label=f"{name} ({info.address})")
+                for name, info in named
             )
         choices.append(SelectOptionDict(value=_REFRESH, label="Refresh list"))
         return choices
