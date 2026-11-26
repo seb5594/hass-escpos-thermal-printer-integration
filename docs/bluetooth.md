@@ -19,6 +19,13 @@ after each job. Use gap labels and fit the content within 96 dots
 across by 240 dots along the feed for 30 mm labels. For text that should
 run along the long side of the label, use `print_text_image` with
 `rotation: 90`. A standalone feed advances by one label.
+The printer (item 5836, sold by Action as 3212141) shows up twice in a
+Bluetooth scanner: as `FICHERO_5836` for Classic Bluetooth and as
+`FICHERO_5836_BLE` for Bluetooth LE. Choose the `_BLE` entry here; its
+address differs from the Classic one in the first byte (for example
+`C9:48:…` instead of `C8:48:…`). It offers the print service `0xFF00`
+(write `FF02`, replies on `FF01`) next to three other UARTs, and the
+integration uses the `FF00` pair.
 [Action product page](https://www.action.com/de-de/p/3212141/fichero-etikettendrucker/)
 · [D11s protocol reference](https://github.com/0xMH/fichero-printer/blob/main/docs/PROTOCOL.md)
 
