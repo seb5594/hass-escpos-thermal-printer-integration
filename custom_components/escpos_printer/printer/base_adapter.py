@@ -612,6 +612,14 @@ class EscposPrinterAdapterBase(
             return self._config.profile
         return None
 
+    def get_profile_label_height(self) -> int | None:
+        """Return the length in dots of one label on a label printer, else ``None``.
+
+        Continuous-paper printers have no fixed length. Design tools use this
+        together with :meth:`get_profile_pixel_width` to size their canvas.
+        """
+        return None
+
     def get_profile_pixel_width(self, hass: HomeAssistant | None = None) -> int | None:
         """Return the printer profile's max pixel width (cached).
 

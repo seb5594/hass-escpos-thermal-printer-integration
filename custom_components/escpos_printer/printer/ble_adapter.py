@@ -206,6 +206,10 @@ class BlePrinterAdapter(EscposPrinterAdapterBase):
         """Return the physical width of the BLE printer's printhead."""
         return self._profile.width
 
+    def get_profile_label_height(self) -> int | None:
+        """Return the label length in dots of a label printer profile."""
+        return self._profile.label_rows or None
+
     async def _status_check(self, hass: HomeAssistant) -> None:
         async with self._probe_lock_or_skip() as acquired:
             if not acquired:

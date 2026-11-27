@@ -608,3 +608,17 @@ def test_unrelated_devices_are_hidden_until_requested():
 def test_all_devices_show_when_none_looks_like_a_printer():
     values = [value for value, _ in _choices([_info("Soundbar", "00:21:7E:57:A7:77")])]
     assert values == ["00:21:7E:57:A7:77", "__refresh__"]
+
+
+def test_adapters_report_the_label_geometry_for_design_tools():
+    from custom_components.escpos_printer.printer import ble_adapter
+    from custom_components.escpos_printer.printer.config import BluetoothPrinterConfig
+
+    def adapter(profile):
+        config = BluetoothPrinterConfig(mac="AA:BB:CC:DD:EE:FF", ble_profile=profile)
+        return ble_adapter.BlePrinterAdapter(config, profile)
+
+    label = adapter(BlePrinterProfile(name="D11s", width=96, dialect="aiyin", label_rows=240))
+    roll = adapter(BlePrinterProfile(name="Roll", width=384, dialect="lujiang"))
+    assert (label.get_profile_pixel_width(), label.get_profile_label_height()) == (96, 240)
+    assert (roll.get_profile_pixel_width(), roll.get_profile_label_height()) == (384, None)
