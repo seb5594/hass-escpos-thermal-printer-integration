@@ -20,6 +20,14 @@ def is_craftsco_4777_name(name: str) -> bool:
     return name.casefold().startswith((_CRAFTSCO_4777_LEGACY, _CRAFTSCO_4777_AIYIN))
 
 
+_ADDRESS = re.compile(r"[0-9a-f]{2}(:[0-9a-f]{2}){5}", re.IGNORECASE)
+
+
+def is_unknown_name(name: str) -> bool:
+    """Whether ``name`` is empty or only the address a Bluetooth stack falls back to."""
+    return not name.strip() or _ADDRESS.fullmatch(name.strip()) is not None
+
+
 def craftsco_4777_variant(name: str, model: str) -> CraftsCo4777Variant | None:
     """Resolve firmware as the Fichero app does for the two 4777 advertisements."""
     advertised = (name if is_craftsco_4777_name(name) else model).casefold()
@@ -28,6 +36,10 @@ def craftsco_4777_variant(name: str, model: str) -> CraftsCo4777Variant | None:
     if model.upper().startswith("D1_LJ20C_"):
         return "lujiang"
     if advertised.startswith(_CRAFTSCO_4777_LEGACY):
+        return "compressed"
+    if is_unknown_name(name):
+        # Some units advertise no usable name at all. Whoever picked the 4777
+        # profile for such a printer most likely owns the common legacy model.
         return "compressed"
     return None
 

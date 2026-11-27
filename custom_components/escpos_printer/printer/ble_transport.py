@@ -9,6 +9,7 @@ import logging
 from struct import pack, unpack_from
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
+import unicodedata
 from zlib import compress
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -61,6 +62,16 @@ _FATAL_STATUS = 0x56  # Cover open, paper out, or printhead overheated.
 _AD_LOCAL_NAME_TYPES = (0x08, 0x09)  # shortened / complete local name
 
 
+def _clean_name(text: str) -> str:
+    """Keep the name up to the first replacement, control or unassigned character."""
+    kept = []
+    for char in text:
+        if char == "\ufffd" or unicodedata.category(char).startswith("C"):
+            break
+        kept.append(char)
+    return "".join(kept).strip()
+
+
 def _name_from_raw_advertisement(raw: bytes) -> str:
     """Read the local name out of raw advertisement data, ignoring undecodable bytes."""
     position = 0
@@ -69,8 +80,7 @@ def _name_from_raw_advertisement(raw: bytes) -> str:
         if length == 0:
             break
         if raw[position + 1] in _AD_LOCAL_NAME_TYPES:
-            text = raw[position + 2 : position + 1 + length].decode("utf-8", errors="ignore")
-            return "".join(char for char in text if char.isprintable()).strip()
+            return _clean_name(raw[position + 2 : position + 1 + length].decode("utf-8", "replace"))
         position += length + 1
     return ""
 
@@ -85,7 +95,7 @@ def advertised_name(info: Any, fallback: str = "") -> str:
     name = str(getattr(info, "name", "") or fallback)
     address = str(getattr(info, "address", ""))
     if name and name.upper() != address.upper():
-        return name
+        return _clean_name(name) or name
     raw = getattr(info, "raw", None)
     if isinstance(raw, bytes | bytearray) and (
         recovered := _name_from_raw_advertisement(bytes(raw))

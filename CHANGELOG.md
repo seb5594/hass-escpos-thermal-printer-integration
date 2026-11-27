@@ -13,7 +13,8 @@ Pre-release.
 
 ### Fixed
 
-- BLE printers whose advertised name carries trailing invalid bytes (the Crafts&Co 4777) are recognised again. The name is read from the raw advertisement when Home Assistant reports the address instead, so the 4777 profile and its firmware variant are found.
+- BLE printers whose advertised name carries trailing invalid bytes (the Crafts&Co 4777) are recognised again. The name is read from the raw advertisement when Home Assistant reports the address instead, so the 4777 profile and its firmware variant are found. Junk characters after the name are cut off in the device list.
+- A Crafts&Co 4777 that advertises no usable name at all can be added with the 4777 profile; it is treated as the common legacy (compressed) model.
 
 ### Changed
 

@@ -533,3 +533,29 @@ def test_an_address_stays_when_no_raw_data_exists():
 
     info = SimpleNamespace(name="AA:BB:CC:DD:EE:FF", address="AA:BB:CC:DD:EE:FF", raw=None)
     assert advertised_name(info) == "AA:BB:CC:DD:EE:FF"
+
+
+def test_junk_after_the_name_is_cut_off():
+    from custom_components.escpos_printer.printer.ble_transport import advertised_name
+
+    address = "5E:55:09:00:22:A0"
+    decoded = SimpleNamespace(name="CRAFTS&CO|4777_BLE���\x81", address=address)
+    assert advertised_name(decoded) == "CRAFTS&CO|4777_BLE"
+    raw = SimpleNamespace(
+        name=address, address=address, raw=_raw_advertisement(b"CRAFTS&CO|4777_BLE\xef\xbf\xbd\xff")
+    )
+    assert advertised_name(raw) == "CRAFTS&CO|4777_BLE"
+
+
+@pytest.mark.parametrize("name", ["", " ", "5E:55:09:00:CF:8E", "5e:55:09:00:cf:8e"])
+def test_a_4777_without_a_usable_name_gets_the_common_firmware_variant(name):
+    from custom_components.escpos_printer.capabilities.ble_profiles import craftsco_4777_variant
+
+    assert craftsco_4777_variant(name, "") == "compressed"
+
+
+def test_other_names_are_not_taken_for_a_4777():
+    from custom_components.escpos_printer.capabilities.ble_profiles import craftsco_4777_variant
+
+    assert craftsco_4777_variant("Some Other Printer", "") is None
+    assert craftsco_4777_variant("CRAFTS&CO_4777", "") == "aiyin"
