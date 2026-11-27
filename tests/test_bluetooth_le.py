@@ -559,3 +559,52 @@ def test_other_names_are_not_taken_for_a_4777():
 
     assert craftsco_4777_variant("Some Other Printer", "") is None
     assert craftsco_4777_variant("CRAFTS&CO_4777", "") == "aiyin"
+
+
+def _info(name, address, services=()):
+    return SimpleNamespace(name=name, address=address, service_uuids=list(services), raw=None)
+
+
+def _choices(infos, show_all=False):
+    from custom_components.escpos_printer._config_flow.ble_steps import BleFlowMixin
+    from custom_components.escpos_printer.capabilities.ble_profiles import get_ble_profiles
+
+    api = SimpleNamespace(async_discovered_service_info=lambda hass, connectable: infos)
+    flow = SimpleNamespace(hass=None, _ble_show_all=show_all)
+    with patch.object(ble_steps, "bluetooth_api", return_value=api):
+        return [
+            (choice["value"], choice["label"])
+            for choice in BleFlowMixin._ble_choices(flow, get_ble_profiles())
+        ]
+
+
+def test_the_nameless_sighting_of_a_printer_takes_over_its_name():
+    """5E:... connects over BLE but has no name; 55:... carries it. Show one entry."""
+    infos = [
+        _info("CRAFTS&CO|4777", "55:55:09:00:CF:8E"),
+        _info("5E:55:09:00:CF:8E", "5E:55:09:00:CF:8E"),
+    ]
+    values = dict(_choices(infos))
+    assert values["5E:55:09:00:CF:8E"] == "CRAFTS&CO|4777 (5E:55:09:00:CF:8E)"
+    assert "55:55:09:00:CF:8E" not in values
+
+
+def test_unrelated_devices_are_hidden_until_requested():
+    printer = _info("FICHERO_5836_BLE", "C9:48:8A:61:41:B3")
+    other = _info("Soundbar", "00:21:7E:57:A7:77")
+    by_service = _info("Mystery", "AA:AA:AA:AA:AA:01", ["0000ff00-0000-1000-8000-00805f9b34fb"])
+    shown = _choices([printer, other, by_service])
+    assert [value for value, _ in shown] == [
+        "C9:48:8A:61:41:B3",
+        "AA:AA:AA:AA:AA:01",
+        "__show_all__",
+        "__refresh__",
+    ]
+    everything = [value for value, _ in _choices([printer, other, by_service], show_all=True)]
+    assert "00:21:7E:57:A7:77" in everything
+    assert "__show_all__" not in everything
+
+
+def test_all_devices_show_when_none_looks_like_a_printer():
+    values = [value for value, _ in _choices([_info("Soundbar", "00:21:7E:57:A7:77")])]
+    assert values == ["00:21:7E:57:A7:77", "__refresh__"]

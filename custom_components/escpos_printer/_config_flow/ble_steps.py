@@ -19,6 +19,7 @@ from ..capabilities.ble_profiles import (
     craftsco_4777_variant,
     get_ble_profiles,
     is_craftsco_4777_name,
+    is_unknown_name,
 )
 from ..const import (
     CONF_BLE_PROFILE,
@@ -42,7 +43,42 @@ from ..printer.ble_transport import (
 from .bluetooth_helpers import _generate_bt_unique_id, _normalize_bt_mac
 
 _REFRESH = "__refresh__"
+_SHOW_ALL = "__show_all__"
 _BLE_TIMEOUT = 12.0
+
+
+def _merge_siblings(
+    named: list[tuple[str, Any]], profiles: dict[str, BlePrinterProfile]
+) -> list[tuple[str, Any]]:
+    """Fold a nameless sighting into the named sighting of the same printer.
+
+    Some printers show up under two addresses that differ only in the first
+    byte, and only one of them carries the name. The nameless one is the one
+    that connects over BLE, so it keeps its address and takes over the name.
+    """
+    groups: dict[str, list[tuple[str, Any]]] = {}
+    for item in named:
+        groups.setdefault(item[1].address.upper()[3:], []).append(item)
+    merged: list[tuple[str, Any]] = []
+    for group in groups.values():
+        unnamed = [item for item in group if is_unknown_name(item[0])]
+        known = [
+            item
+            for item in group
+            if any(profile.matches_advertisement(item[0]) for profile in profiles.values())
+        ]
+        if len(group) == 2 and len(unnamed) == 1 and len(known) == 1:
+            merged.append((known[0][0], unnamed[0][1]))
+        else:
+            merged.extend(group)
+    return merged
+
+
+def _looks_like_printer(name: str, info: Any, profiles: dict[str, BlePrinterProfile]) -> bool:
+    """Whether the name or the advertised services point to a known BLE printer."""
+    return any(profile.matches_advertisement(name) for profile in profiles.values()) or (
+        not BLE_PRINTER_SERVICES.isdisjoint(uuid.lower() for uuid in info.service_uuids)
+    )
 
 
 class BleFlowMixin:
@@ -62,7 +98,9 @@ class BleFlowMixin:
         """Offer discovered devices or a manually entered Bluetooth address."""
         profiles = await self.hass.async_add_executor_job(get_ble_profiles)
         errors: dict[str, str] = {}
-        if user_input is not None and user_input[CONF_BT_MAC] != _REFRESH:
+        if user_input is not None and user_input[CONF_BT_MAC] == _SHOW_ALL:
+            self._ble_show_all = True
+        if user_input is not None and user_input[CONF_BT_MAC] not in (_REFRESH, _SHOW_ALL):
             result = await self._save_ble_printer(user_input, profiles, errors)
             if result is not None:
                 return result
@@ -80,7 +118,7 @@ class BleFlowMixin:
                 and CRAFTSCO_4777_DIALECT in profiles
             ):
                 current[CONF_BLE_PROFILE] = CRAFTSCO_4777_DIALECT
-        if current.get(CONF_BT_MAC) == _REFRESH:
+        if current.get(CONF_BT_MAC) in (_REFRESH, _SHOW_ALL):
             current.pop(CONF_BT_MAC)
         return self.async_show_form(  # type: ignore[attr-defined,no-any-return]
             step_id="reconfigure_bluetooth_le" if reconfigure else "bluetooth_le",
@@ -115,10 +153,21 @@ class BleFlowMixin:
         """Show likely printers first while keeping unnamed devices selectable."""
         choices: list[SelectOptionDict] = []
         if bluetooth := bluetooth_api(self.hass):
-            named = [
-                (advertised_name(info), info)
-                for info in bluetooth.async_discovered_service_info(self.hass, connectable=True)
-            ]
+            named = _merge_siblings(
+                [
+                    (advertised_name(info), info)
+                    for info in bluetooth.async_discovered_service_info(self.hass, connectable=True)
+                ],
+                profiles,
+            )
+            # Only likely printers by default; with none in sight, or on request, show all.
+            show_all = getattr(self, "_ble_show_all", False)
+            likely = [item for item in named if _looks_like_printer(item[0], item[1], profiles)]
+            if likely and not show_all:
+                hidden = len(named) - len(likely)
+                named = likely
+            else:
+                hidden = 0
             named.sort(
                 key=lambda item: (
                     not any(p.matches_advertisement(item[0]) for p in profiles.values()),
@@ -131,6 +180,8 @@ class BleFlowMixin:
                 SelectOptionDict(value=info.address, label=f"{name} ({info.address})")
                 for name, info in named
             )
+            if hidden:
+                choices.append(SelectOptionDict(value=_SHOW_ALL, label="Show all devices"))
         choices.append(SelectOptionDict(value=_REFRESH, label="Refresh list"))
         return choices
 

@@ -11,6 +11,10 @@ and releases are versioned by date: `YYYY.MM.DD`, with `.1`, `.2`, … for furth
 
 Pre-release.
 
+### Changed
+
+- The BLE device list shows only likely printers (known names or printer services) with a "Show all devices" entry, and merges the nameless and the named sighting of one printer into a single entry.
+
 ### Fixed
 
 - BLE printers whose advertised name carries trailing invalid bytes (the Crafts&Co 4777) are recognised again. The name is read from the raw advertisement when Home Assistant reports the address instead, so the 4777 profile and its firmware variant are found. Junk characters after the name are cut off in the device list.
